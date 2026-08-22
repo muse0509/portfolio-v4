@@ -1,0 +1,2 @@
+# Copy to .dev.vars only when local Worker bindings or secrets are required.
+NEXTJS_ENV=development
