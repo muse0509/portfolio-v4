@@ -3,6 +3,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
+import { LiquidGlassLink } from "@/components/ui/liquid-glass-link";
+
 import { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
 
 type NavigationItem = {
@@ -11,11 +13,6 @@ type NavigationItem = {
 };
 
 type SiteHeaderProps = {
-  homeHref: string;
-  identity: {
-    readonly name: string;
-    readonly role: string;
-  };
   navigation: {
     readonly label: string;
     readonly menuOpenLabel: string;
@@ -25,7 +22,7 @@ type SiteHeaderProps = {
   };
 };
 
-export function SiteHeader({ homeHref, identity, navigation }: SiteHeaderProps) {
+export function SiteHeader({ navigation }: SiteHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const shouldReduceMotion = usePrefersReducedMotion();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -57,11 +54,6 @@ export function SiteHeader({ homeHref, identity, navigation }: SiteHeaderProps) 
         本文へ移動
       </a>
       <div className="page-shell site-header__inner">
-        <a className="site-brand focus-ring" href={homeHref} aria-label="トップへ戻る">
-          <span className="site-brand__name">{identity.name}</span>
-          <span className="site-brand__role">{identity.role}</span>
-        </a>
-
         <nav className="desktop-navigation" aria-label={navigation.label}>
           {navigation.items.map((item) => (
             <a className="navigation-link focus-ring" href={item.href} key={item.href}>
@@ -70,12 +62,13 @@ export function SiteHeader({ homeHref, identity, navigation }: SiteHeaderProps) 
           ))}
         </nav>
 
-        <a
-          className="header-contact focus-ring"
+        <LiquidGlassLink
+          className="header-contact"
           href={navigation.contact.href}
-        >
-          {navigation.contact.label}
-        </a>
+          label={navigation.contact.label}
+          showArrow={false}
+          variant="header"
+        />
 
         <button
           ref={menuButtonRef}

@@ -1,11 +1,9 @@
 export const siteRoutes = {
   home: "#top",
-  works: "#works",
-  process: "#process",
   about: "#about",
   contact: "#contact",
   axis: "#axis",
-  contactStatus: "#contact-status",
+  works: "/works",
 } as const;
 
 export const siteContent = {
@@ -16,7 +14,7 @@ export const siteContent = {
   },
   identity: {
     name: "Yusuke Kikuta",
-    role: "Full-Stack Engineer",
+    role: "フルスタックエンジニア",
   },
   routes: siteRoutes,
   navigation: {
@@ -25,148 +23,174 @@ export const siteContent = {
     menuCloseLabel: "メニューを閉じる",
     items: [
       { label: "トップ", href: siteRoutes.home },
-      { label: "実績", href: siteRoutes.works },
-      { label: "開発アプローチ", href: siteRoutes.process },
+      { label: "Axis", href: siteRoutes.axis },
       { label: "プロフィール", href: siteRoutes.about },
     ],
-    contact: { label: "Contact", href: siteRoutes.contact },
+    contact: { label: "相談する", href: siteRoutes.contact },
   },
   hero: {
-    eyebrow: "Full-Stack Engineer",
     headline: "構想を、動くプロダクトまで。",
     headlineLines: ["構想を、", "動くプロダクトまで。"],
-    description:
-      "事業の意図を理解し、要件整理から設計・実装・改善まで。0→1のプロダクト開発を一貫して進めます。",
-    primaryAction: { label: "相談内容を共有する", href: siteRoutes.contact },
+    headlineLinesMobile: ["構想を、", "動くプロダクト", "まで。"],
+    description: {
+      lead: "事業の意図を理解し、要件整理から",
+      focus: "設計・実装・改善",
+      suffix: "まで。",
+      closing: "0→1のプロダクト開発を一貫して進めます。",
+    },
+    primaryAction: { label: "相談する", href: siteRoutes.contact },
     secondaryAction: { label: "Axisを見る", href: siteRoutes.axis },
   },
-  proof: [
-    { label: "0→1 Product", detail: "構想から実装まで" },
-    { label: "Full-Stack", detail: "境界を越えて設計" },
-    { label: "Axis / Flagship", detail: "ケーススタディ準備中" },
-  ],
-  axis: {
-    eyebrow: "Selected Work",
-    title: "Axis / Flagship",
+  axisFeaturedWork: {
+    sectionLabel: "SELECTED WORK / 01",
+    worksAction: {
+      label: "すべての実績を見る",
+      href: siteRoutes.works,
+    },
+    productName: "Axis",
+    logoSrc: "/media/axis/axis-logo.svg" as string | null,
+    displayLine: "構想から市場へ。",
+    videoSrc: "/media/axis/axis-teaser.mp4" as string | null,
+    posterSrc: "/media/axis/axis-teaser-poster.webp" as string | null,
+    durationLabel: "00:42",
     description:
-      "プロダクトの目的と利用フローを起点に、公開可能な設計・実装範囲を整理しています。",
-    disclaimer: "Devnet / 実資金取引なし",
-    mediaLabel: "Axis product capture / pending",
-  },
-  evidence: {
-    label: "Axis / Case Study",
-    heading: "Axisの実装背景と責任範囲",
-    items: [
-      {
-        title: "Context",
-        body: "課題、利用者、プロダクトの前提を確認し、公開できる背景情報を整理中です。",
-      },
-      {
-        title: "Role",
-        body: "要件整理、設計、実装のうち、検証済みの担当範囲を確認して掲載します。",
-      },
-      {
-        title: "Outcome",
-        body: "数値や成果は作らず、確認できた事実とDevnetでの検証内容だけを公開します。",
-      },
+      "Solana上で、誰でも複数資産をひとつのバスケットとして扱えるプロダクト。",
+    ownership:
+      "要件定義、UI設計、フロントエンド、バックエンド、公開、ローンチ後のマーケティングまで一貫して推進。",
+    facts: [
+      { lead: "約1か月で", value: "再構築" },
+      { lead: "Devnet", value: "約400ユーザー" },
+      { lead: "2,100件超の", value: "ETF作成" },
     ],
+    environment: "Devnet",
+    disclaimer: "実資金取引なし",
+    appAction: {
+      label: "Axisアプリを開く",
+      accessibleLabel: "Axisアプリを新しいタブで開く",
+      href: "https://dev.axs.pizza",
+    },
+    repositoryAction: {
+      label: "GitHubでAxis_MVPを見る",
+      accessibleLabel: "AxisのGitHubリポジトリを新しいタブで開く",
+      href: "https://github.com/Axis-pizza/Axis_MVP",
+    },
   },
-  responsibility: {
-    heading: "Responsibility Timeline",
-    stages: ["Discovery", "Design", "Frontend", "Backend", "Onchain", "Ship"],
-  },
-  selectedWorks: {
-    heading: "Selected Works",
-    items: [
+  worksPage: {
+    introduction: {
+      heading: {
+        lead: "要件定義から",
+        scope: "設計・実装・公開",
+        continuation: "公開後の改善とマーケティングまで。",
+      },
+      description:
+        "事業と技術の間に立ち、0→1のプロダクトを前へ進めてきました。",
+      period: "2024–2026",
+      fields: ["プロダクト開発", "AI自動化", "Solana"],
+      note: "一部機密性の高いプロジェクトは、詳細を非公開としています。",
+    },
+    axis: {
+      number: "01",
+      period: "2025.04–現在",
+      category: "オンチェーン・バスケット型DeFiプロダクト",
+      role: "技術責任者 / プロダクト・フルスタック",
+      scope: [
+        "要件定義",
+        "UI設計",
+        "フロントエンド",
+        "バックエンド",
+        "公開",
+        "マーケティング",
+      ],
+    },
+    projects: [
       {
         number: "02",
-        title: "Project 02",
-        description: "公開内容を確認後、ケーススタディを追加します。",
-        status: "Details / Pending",
-        mediaLabel: "Project 02 media / pending",
+        period: ["2024.08", "2025.02"],
+        title: "AI営業オートメーション",
+        description:
+          "AIを活用し、営業リードの獲得からナーチャリングまでを自動化。リサーチ、スコアリング、アプローチを一つの流れに統合。",
+        outcome: ["400件以上のリード獲得"],
+        scope: ["要件定義", "設計", "実装", "公開", "改善", "マーケティング"],
       },
       {
         number: "03",
-        title: "Project 03",
-        description: "実績情報と素材の確認後に差し替えます。",
-        status: "Details / Pending",
-        mediaLabel: "Project 03 media / pending",
-      },
-    ],
-  },
-  capabilities: {
-    heading: "Capabilities",
-    items: [
-      {
-        title: "Product Engineering",
-        body: "事業要件を、検証できるプロダクトの形へ落とし込みます。",
-      },
-      {
-        title: "Frontend",
-        body: "TypeScript / React / Next.jsを軸に、使いやすいUIを実装します。",
-      },
-      {
-        title: "Backend / Cloud",
-        body: "API、データ、運用境界を含めて、公開後を見据えて設計します。",
-      },
-      {
-        title: "Web3 / Solana",
-        body: "必要なプロジェクトでは、Solana固有の実装要件にも対応します。",
-      },
-    ],
-  },
-  process: {
-    heading: "Process",
-    items: [
-      {
-        number: "01",
-        title: "Discover",
-        body: "目的、利用者、制約を揃える。",
-      },
-      {
-        number: "02",
-        title: "Define",
-        body: "要件と優先順位を決める。",
-      },
-      {
-        number: "03",
-        title: "Build",
-        body: "小さく実装し、確かめる。",
+        period: ["2024.08", "2025.02"],
+        title: "Solana DeFi Vault Interface",
+        description:
+          "Solana上のVault運用を可視化し、意思決定を支えるダッシュボード。オンチェーンデータを統合し、高度な集計体験を実現。",
+        outcome: ["フロントエンド", "オンチェーン統合"],
+        scope: ["要件定義", "UI設計", "フロントエンド", "バックエンド", "公開"],
       },
       {
         number: "04",
-        title: "Ship & Improve",
-        body: "公開し、学びを次へ反映する。",
+        period: ["2025.03", "2025.05"],
+        title: "生成AI・RAG業務支援アプリ",
+        description:
+          "社内ナレッジの検索と要約生成を支援する業務アプリ。RAG構成により、精度の高い回答と運用効率化を実現。",
+        outcome: ["フロントエンド実装"],
+        scope: ["要件定義", "設計", "フロントエンド", "バックエンド", "公開"],
+      },
+      {
+        number: "05",
+        period: ["2025.06", "2025.09"],
+        title: "スタートアップMVP開発支援",
+        description:
+          "複数のスタートアップに伴走し、MVP開発を支援。技術選定から設計、実装、リリースまでをメンタリング。",
+        outcome: ["エンジニアメンター", "開発チーム"],
+        scope: ["要件定義", "設計", "実装", "コードレビュー", "メンタリング"],
       },
     ],
+    recognition: {
+      heading: "受賞・登壇",
+      awards: {
+        heading: "受賞",
+        items: [
+          {
+            title: "Breakout Hackathon",
+            detail: "Zee Prime Capital Sidetrack / 1st Place",
+          },
+          {
+            title: "Colosseum Frontier Hackathon",
+            detail: "Superteam Japan Track / Winner",
+          },
+          {
+            title: "Sol Hack3rs Global Hackathon",
+            detail: "Slash Vision Labs Award / Audience Award",
+          },
+        ],
+      },
+      speaking: {
+        heading: "登壇",
+        items: [
+          {
+            date: "2026.02",
+            organizer: "mtnDAO",
+            eventName: "Demo Day",
+            location: "Salt Lake City",
+            detail: "Axis Pitch",
+          },
+          {
+            date: "2026.05",
+            organizer: "MonkeFoundry × Solana",
+            eventName: "Demo Day",
+            location: "Miami",
+            detail: "Axis Pitch",
+          },
+        ],
+      },
+    },
   },
   about: {
-    heading: "About",
+    heading: "プロフィール",
     name: "Yusuke Kikuta",
-    role: "Full-Stack Engineer",
+    role: "フルスタックエンジニア",
     description:
       "事業と実装の間に立ち、曖昧な構想を検証可能なプロダクトへ進めることを大切にしています。",
-    mediaLabel: "Portrait / pending",
-  },
-  writing: {
-    heading: "Writing",
-    description: "テーマと公開内容を確認後に追加します。",
-    items: [
-      { title: "Writing 01", status: "Topic / Pending" },
-      { title: "Writing 02", status: "Topic / Pending" },
-      { title: "Writing 03", status: "Topic / Pending" },
-    ],
   },
   contact: {
-    eyebrow: "Contact",
-    heading: "構想を、動くプロダクトまで。",
-    headingLines: ["構想を、", "動くプロダクトまで。"],
+    heading: "まず、相談内容を聞かせてください。",
     description:
-      "相談内容と公開可能な連絡先を確認後、問い合わせ導線を接続します。",
-    action: { label: "相談導線を確認する", href: siteRoutes.contactStatus },
-    status: "Contact route / preparing",
-  },
-  footer: {
-    note: "Product Cinema / First implementation",
+      "お問い合わせ窓口は現在準備中です。公開できる連絡方法が整い次第、ここから相談内容を送れるようにします。",
+    availability: "お問い合わせ窓口を準備しています",
   },
 } as const;
