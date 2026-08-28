@@ -26,6 +26,7 @@
 # misc
 .DS_Store
 *.pem
+/docs/design/concepts/product-cinema/source-media/
 
 # debug
 npm-debug.log*
