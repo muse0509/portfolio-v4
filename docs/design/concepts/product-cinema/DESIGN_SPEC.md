@@ -8,10 +8,11 @@ Axisは旗艦実績として扱うが、サイト全体をWeb3ポートフォリ
 
 ## 視覚原則
 
-- 深い黒の展示空間に、実績画像とタイポグラフィを静かに配置する。
+- 深い黒の一枚のアプリ面に、検証済みの情報とタイポグラフィを静かに配置する。
 - 高級感は余白、階層、罫線、光量差で作る。
-- カードを並べず、全幅バンドと編集的な行で情報を整理する。
-- Axisのメディア面だけに、ごく控えめなスポットライトを与える。
+- 意味のない英大文字、連番、斜線、ステータス、非リンク矢印を装飾に使わない。
+- カードを並べず、全幅バンドと編集的な行、ひとつのAxis Featured Workで情報を整理する。
+- Axisはロゴ、短いステートメント、16:9メディア、説明・事実・CTAの順に見せる。
 - Appleの素材・画面構成・コピーは模倣しない。
 
 ## 推奨トークン
@@ -35,32 +36,36 @@ Axisは旗艦実績として扱うが、サイト全体をWeb3ポートフォリ
   --gutter-tablet: 40px;
   --gutter-mobile: 24px;
 
-  --radius-control: 2px;
-  --radius-media: 2px;
+  --radius-control: 7px;
+  --radius-surface: 16px;
   --line: 1px;
 }
 ```
 
 色はモノトーンのみ。色付きネオン、紫・青のWeb3グラデーション、茶系の高級感表現は使わない。
-メディア背面の白黒ラジアルライトだけは、ごく低い不透明度で使用できる。
+Axis Featured Workには装飾グラデーションを使わず、黒の光量差とhairlineだけで構成する。
 
 ## タイポグラフィ
 
-- 日本語はシステムサンセリフを第一段階で使用する。
+- 見出しと強調文はShippori Mincho、本文とUIはZen Kaku Gothic Newを使用する。
 - H1: PC 72px前後 / Mobile 48px前後。2行、標準字間、line-height 1.05〜1.12。
 - H2: PC 40〜48px / Mobile 32〜36px。
 - Body: 16px / line-height 1.7〜1.85。
-- Eyebrow: 12〜13px / uppercase / letter-spacing 0.12〜0.16em。
 - Nav: 13〜14px。
+- 英字を使う場合も、固有名詞や技術名を除いて大文字化しない。
 - 極細ウェイト、負のletter-spacing、読めない低コントラストは避ける。
+- 日本語本文はphrase-aware wrappingを使い、助詞・句読点・中黒だけが行末や次行に孤立しないようにする。固定改行はHeroなど構図上の意図がある見出しに限定する。
 
 ## レイアウト
 
 - PC: 最大1280px、12カラム、左右64pxを基準にする。
 - Tablet: 左右40px。
 - Mobile: 390px基準、左右24px。必要な場合のみ20pxまで縮小する。
-- Heroの1画面内に、次のProofまたはAxisセクションの一部を見せる。
-- Axisメディア: PC 16:9、Mobile 16:10を基準に安定したaspect-ratioを指定する。
+- PCではHeaderとHeroの合計を画面高1枚に揃え、Axisは次の画面から始める。
+- Headerは画面上端へ追従させ、アンカー移動時はHeader高と24pxの余白を確保して見出しを隠さない。
+- Tablet / Mobileではコンテンツの読みやすさを優先し、Axisの導入が画面下に見えてよい。
+- AxisはPCで幅75〜82%の16:9メディアを中央に置く。映像未設定時は通信を行わない静かなプレースホルダーとし、再生操作を表示しない。
+- 映像設定時は表示面積55%以上でミュート再生し、15%以下まで離れたら一時停止する。`prefers-reduced-motion`または省データ設定では自動再生せず、手動再生を残す。
 - CTAの最小高さは48px。モバイルの主要CTAは全幅。
 - セクションを浮いたカードにせず、ページの帯または罫線で区切る。
 
@@ -68,24 +73,27 @@ Axisは旗艦実績として扱うが、サイト全体をWeb3ポートフォリ
 
 1. Site Header
 2. Hero
-3. Proof Strip
-4. Axis Flagship
-5. Axis Evidence / Responsibility Timeline
-6. Selected Works
-7. Capabilities
-8. Process
-9. About / Writing
-10. Contact CTA
-11. Footer
+3. Axis Cinematic Featured Work
+4. Capabilities
+5. About
+6. Contact Status
+
+## 実績ページ構成
+
+- `/works`は個別ケーススタディへの中継ではなく、このページだけで全実績を読み切れる構成にする。
+- 冒頭の担当領域、Axisの旗艦実績、その他4件の時系列一覧、受賞・登壇の順に配置する。
+- AxisはHomeと同じ検証済みロゴ・説明・3つの事実・外部リンクを再利用する。
+- 各プロジェクトをリンク化せず、末尾の矢印や`CASE STUDY`導線を置かない。番号は時系列の識別にのみ使う。
+- 機密案件は固有名詞や画面を出さず、公開可能な役割・成果・担当領域だけを記載する。
 
 ## レスポンシブ
 
 - Desktopの横並びを単純縮小しない。
-- Proofはモバイルで3行に積む。
-- AxisのContext / Role / Outcomeはモバイルで縦積み。
-- Responsibility TimelineはPCで横、モバイルで縦。
-- Selected Worksはモバイルで本文→メディアの順に統一する。
-- AboutとWritingはモバイルで必ず1カラムにする。
+- Axisの説明、事実、CTAはモバイルで縦積みにする。
+- 3つの事実はPC / Tabletで3列、Mobileで1列にする。
+- Capabilitiesは技術経験をCORE STACKとEXTENDED STACKへ分ける。COREはMobile 2列、Tablet 3列、1200px以上で6列。EXTENDEDはMobile 1列、Tablet 2列、Desktop 3列とし、技術名と年数を左右で比較できる行にする。
+- CapabilitiesではSimple IconsまたはFont Awesome BrandsのSVGデータを`currentColor`で描画し、公式アイコンがない技術は文字だけで表示する。カード、ピル、ブランドカラー、グラデーション、発光、Liquid Glassは使わない。
+- Aboutはモバイルで1カラムにする。
 - Contact見出しはモバイルで意図的に2行にする。
 - 375px〜1440pxで水平スクロールを発生させない。
 
@@ -95,16 +103,16 @@ Axisは旗艦実績として扱うが、サイト全体をWeb3ポートフォリ
 - UI状態変化: 220〜320ms。
 - セクション表示: 500〜700ms、12〜24px以内の移動。
 - Hero: 800〜1000ms。文字単位ではなく行単位。
-- Axisのみ、PCで最大2%のscaleまたは4〜8pxの視差を許容する。
 - Mobileでは視差とsticky連動を無効化する。
 - `prefers-reduced-motion` を尊重し、JS失敗時も本文を表示する。
+- スクロール連動はAxis動画の再生・一時停止という状態変化に限定し、位置・scale・視差には連動させない。
 - スクロールジャック、タイプライター、磁石ボタン、独自カーソル、粒子、常時ノイズは使わない。
 
-## 実画像への置換
+## 実画像の扱い
 
-- `ACTUAL AXIS SCREENSHOT`: 実在するAxisの画面を使用する。
-- `PROJECT 02 / 03`: 実績内容が確定してから実画像と説明を追加する。
-- `REAL PORTRAIT`: 本人写真を使用するか、写真なしのAboutへ変更する。
+- Axis映像が未設定の間は、生成UIを置かず、`video`要素も生成しない16:9の静かな面だけを表示する。
+- ロゴ未設定時は文字の`AXIS`へフォールバックする。検証済みアセット追加後だけ画像・映像パスを有効化する。
+- 本人写真がない状態では、写真枠を置かずテキストだけのプロフィールにする。
 - 生成されたプロダクトUIや人物を、実績証明として公開しない。
 
 ## 実装禁止事項
@@ -112,5 +120,5 @@ Axisは旗艦実績として扱うが、サイト全体をWeb3ポートフォリ
 - 参照PNGを背景画像としてページ全体に貼る。
 - 架空の数値、顧客、レビュー、賞、経験年数を表示する。
 - ターミナル風UI、コードレイン、Web3ネオン、3D端末モック。
-- Glassmorphism、巨大な角丸、カードウォール、装飾用WebGL。
+- 一般的なGlassmorphism、巨大な角丸、カードウォール、装飾用WebGL。Liquid Glassは主要導線に限り、透明な背景屈折として使用できる。
 - 主要コンテンツをJavaScript実行前に非表示のままにする。

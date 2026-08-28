@@ -1,6 +1,9 @@
 # Portfolio V4 要件 v0.1
 
-更新日: 2026-08-23
+更新日: 2026-08-27
+
+> この文書は初期基盤時点の履歴です。現在のホーム画面構成と表現は
+> `docs/design/concepts/product-cinema/DESIGN_SPEC.md` を正とします。
 
 ## 目的
 
@@ -25,22 +28,21 @@
 - アニメーションは意味のある状態変化に限定し、`prefers-reduced-motion` に対応する。
 - セマンティックHTML、キーボード操作、WCAG AA相当のコントラストを基準にする。
 
-## Homeの将来構成
+## Homeの現在構成
 
 1. Hero
-2. Proof Strip
-3. Axis Flagship Case Study
-4. Trust Proof
-5. Selected Works
-6. Capabilities
-7. Process
-8. About
-9. Writing
-10. Availability / Contact
+2. Axis Flagship Case Study
+3. Capabilities
+4. About
+5. Availability / Contact
 
 ## Axisの証拠方針
 
-Axisは最重要ケーススタディとする。現在公開されているDevnet版を実績として扱い、Devnetであり実資金取引ではないことを明記する。UIの証拠には検証済みの実在スクリーンショットだけを使う。生成画像で実在UIを捏造せず、数値は一次資料で出典確認できるまで断定しない。
+Axisは最重要のFeatured Workとする。現在公開されているDevnet版を実績として扱い、Devnetであり実資金取引ではないことを明記する。2026-08-27に公開対象として提供された3つの事実だけを表示し、それ以外の数値は一次資料で確認できるまで断定しない。UIの証拠には検証済みの実在スクリーンショット・映像だけを使い、生成画像で実在UIを捏造しない。
+
+## 実績ページの公開範囲
+
+`/works`は実績をその場で読み切る一覧とし、個別ケーススタディへ遷移する矢印や架空の詳細ルートを作らない。AxisはHomeと同じロゴと検証済み情報を使い、その他の案件は2026-08-27に公開対象として提供された匿名表現、成果、担当領域だけを掲載する。受賞・登壇も同日に提供された項目に限定する。
 
 ## 技術要件
 

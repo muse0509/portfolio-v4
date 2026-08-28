@@ -1,15 +1,13 @@
 # Brand — Portfolio V4
 
-_Status: deferred_
+_Status: typography selected; palette deferred_
 
-The user chose to defer brand setup. This project is currently using shadcn's default neutral palette and no custom typography. The `frontend-design-guidelines` skill will quietly use defaults and will not prompt again.
+## Typography
 
-To set up a real brand palette, typography, and voice at any time, run:
+- Display and emphasized Japanese copy: Shippori Mincho, weight 500.
+- Body, navigation, controls, metadata, and metrics: Zen Kaku Gothic New, weights 400, 500, and 700.
+- Prose uses strict Japanese line breaking and phrase-aware wrapping. Manual line breaks are reserved for intentional display composition only.
 
-    /brand-design
+## Palette
 
-or say: "pick brand colors"
-
-When `brand-design` runs, it will detect this deferred state, skip the "confirm overwrite" step, and proceed directly to the full brand setup. The resulting palette will be applied to `app/globals.css` and this file will be replaced with the real brand documentation.
-
-_Deferred at: 2026-08-23T00:00:00+09:00_
+The existing dark, neutral product-cinema palette remains in place. A broader palette and voice pass is deferred until explicitly requested.
