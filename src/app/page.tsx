@@ -1,8 +1,8 @@
-import { About } from "@/components/home/about";
 import { AxisFeature } from "@/components/home/axis-feature";
 import { Capabilities } from "@/components/home/capabilities";
 import { ContactCta } from "@/components/home/contact-cta";
 import { Hero } from "@/components/home/hero";
+import { ProfileSection } from "@/components/home/profile-section";
 import { SiteHeader } from "@/components/home/site-header";
 import { GlassFilterDefs } from "@/components/ui/glass-filter-defs";
 import { siteContent } from "@/content/site";
@@ -18,7 +18,7 @@ export default function Home() {
           <AxisFeature />
         </div>
         <Capabilities />
-        <About />
+        <ProfileSection />
         <ContactCta />
       </main>
     </div>

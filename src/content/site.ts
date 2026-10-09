@@ -1,10 +1,12 @@
 export const siteRoutes = {
   home: "#top",
-  about: "#about",
+  about: "#profile",
   contact: "#contact",
   axis: "#axis",
   works: "/works",
 } as const;
+
+export type ProfileSocialIcon = "x" | "linkedin" | "github" | "email";
 
 export const siteContent = {
   metadata: {
@@ -180,12 +182,46 @@ export const siteContent = {
       },
     },
   },
-  about: {
+  profile: {
     heading: "プロフィール",
     name: "Yusuke Kikuta",
     role: "フルスタックエンジニア",
-    description:
+    introduction:
       "事業と実装の間に立ち、曖昧な構想を検証可能なプロダクトへ進めることを大切にしています。",
+    biography: [
+      "音楽大学でトランペットを学びながら、在学中からエンジニアとして複数の開発案件に従事。その後、大学を自主退学し、Solana上のプロダクト「Axis」の開発・運営にフルコミットしました。",
+      "要件定義、UI実装、API・データベース、オンチェーン連携から、公開後の運営・マーケティングまで、プロダクトづくりを一貫して担ってきました。",
+    ],
+    photo: {
+      src: "/media/axis/yusukekikuta.jpeg",
+      alt: "Yusuke Kikutaのプロフィール写真",
+    },
+    socialLinks: [
+      {
+        label: "X",
+        href: "https://x.com/muse_jp_sol",
+        icon: "x" as ProfileSocialIcon,
+        external: true,
+      },
+      {
+        label: "LinkedIn",
+        href: "https://www.linkedin.com/in/yusukekikuta",
+        icon: "linkedin" as ProfileSocialIcon,
+        external: true,
+      },
+      {
+        label: "GitHub",
+        href: "https://github.com/muse0509",
+        icon: "github" as ProfileSocialIcon,
+        external: true,
+      },
+      {
+        label: "Email",
+        href: "mailto:yusukekikuta.05@gmail.com",
+        icon: "email" as ProfileSocialIcon,
+        external: false,
+      },
+    ],
   },
   contact: {
     heading: "まず、相談内容を聞かせてください。",
