@@ -63,4 +63,49 @@ describe("siteContent", () => {
     expect(siteContent.worksPage.recognition.awards.items).toHaveLength(3);
     expect(siteContent.worksPage.recognition.speaking.items).toHaveLength(2);
   });
+
+  it("keeps the reviewed profile copy and confirmed public links", () => {
+    expect(siteContent.routes.about).toBe("#profile");
+    expect(siteContent.profile).toMatchObject({
+      heading: "プロフィール",
+      name: "Yusuke Kikuta",
+      role: "フルスタックエンジニア",
+      introduction:
+        "事業と実装の間に立ち、曖昧な構想を検証可能なプロダクトへ進めることを大切にしています。",
+      biography: [
+        "音楽大学でトランペットを学びながら、在学中からエンジニアとして複数の開発案件に従事。その後、大学を自主退学し、Solana上のプロダクト「Axis」の開発・運営にフルコミットしました。",
+        "要件定義、UI実装、API・データベース、オンチェーン連携から、公開後の運営・マーケティングまで、プロダクトづくりを一貫して担ってきました。",
+      ],
+    });
+    expect(siteContent.profile.photo).toEqual({
+      src: "/media/axis/yusukekikuta.jpeg",
+      alt: "Yusuke Kikutaのプロフィール写真",
+    });
+    expect(siteContent.profile.socialLinks).toEqual([
+      {
+        label: "X",
+        href: "https://x.com/muse_jp_sol",
+        icon: "x",
+        external: true,
+      },
+      {
+        label: "LinkedIn",
+        href: "https://www.linkedin.com/in/yusukekikuta",
+        icon: "linkedin",
+        external: true,
+      },
+      {
+        label: "GitHub",
+        href: "https://github.com/muse0509",
+        icon: "github",
+        external: true,
+      },
+      {
+        label: "Email",
+        href: "mailto:yusukekikuta.05@gmail.com",
+        icon: "email",
+        external: false,
+      },
+    ]);
+  });
 });
