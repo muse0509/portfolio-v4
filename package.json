@@ -24,13 +24,13 @@
   },
   "dependencies": {
     "@fortawesome/free-brands-svg-icons": "^7.3.1",
-    "@opennextjs/cloudflare": "1.20.6",
-    "motion": "13.2.0",
-    "next": "16.3.4",
+    "@opennextjs/cloudflare": "1.20.8",
+    "motion": "14.0.0",
+    "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "simple-icons": "^16.30.0",
-    "zod": "^4.5.4"
+    "simple-icons": "^16.34.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
