@@ -1237,13 +1237,13 @@ button {
 }
 
 .capabilities,
-.about,
+.profile,
 .contact-cta {
   background: var(--canvas-deep);
 }
 
 .capabilities,
-.about {
+.profile {
   padding-block: 104px;
 }
 
@@ -1442,45 +1442,130 @@ button {
   text-align: right;
 }
 
-.about__inner {
+.profile__layout {
   display: grid;
-  gap: 44px;
+  grid-template-areas:
+    "heading"
+    "photo"
+    "content";
 }
 
-.about__content {
-  display: grid;
-  gap: 32px;
-  padding-top: 32px;
-  border-top: 1px solid var(--hairline-strong);
+.profile__heading {
+  grid-area: heading;
+  font-size: clamp(2.5rem, 12vw, 4.5rem);
 }
 
-.about__name,
-.about__role,
-.about__description {
+.profile__heading::after {
+  display: block;
+  width: 80px;
+  height: 1px;
+  margin-top: 24px;
+  background: var(--hairline-strong);
+  content: "";
+}
+
+.profile__photo {
+  position: relative;
+  grid-area: photo;
+  width: clamp(104px, 37%, 168px);
+  margin-top: 40px;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  background: var(--canvas-raised);
+  justify-self: start;
+}
+
+.profile__photo-image {
+  object-fit: cover;
+  object-position: 50% 30%;
+  filter: grayscale(1) contrast(1.08);
+}
+
+.profile__content {
+  grid-area: content;
+  min-width: 0;
+  margin-top: 40px;
+}
+
+.profile__name,
+.profile__role,
+.profile__introduction,
+.profile__biography p {
   margin: 0;
 }
 
-.about__name {
+.profile__name {
   font-family: var(--font-display), "Yu Mincho", "Hiragino Mincho ProN", serif;
-  font-size: clamp(1.75rem, 3vw, 2.6rem);
+  font-size: clamp(2.4rem, 10vw, 4.25rem);
   font-weight: 500;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
+  line-height: 1.14;
 }
 
-.about__role {
-  margin-top: 8px;
+.profile__role {
+  margin-top: 12px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: clamp(0.875rem, 1.3vw, 1.0625rem);
+  line-height: 1.6;
 }
 
-.about__description {
-  max-width: 560px;
-  color: var(--muted);
-  font-size: 0.94rem;
+.profile__introduction,
+.profile__biography {
+  max-width: 620px;
   line-break: strict;
-  line-height: 1.9;
   text-wrap: pretty;
-  word-break: auto-phrase;
+  word-break: normal;
+}
+
+.profile__introduction {
+  margin-top: 36px;
+  color: var(--text);
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+.profile__biography {
+  margin-top: 32px;
+}
+
+.profile__biography p {
+  color: var(--muted);
+  font-size: clamp(0.9375rem, 1.2vw, 1.0625rem);
+  line-height: 1.95;
+}
+
+.profile__biography p + p {
+  margin-top: 24px;
+}
+
+.profile-social {
+  margin-top: 36px;
+}
+
+.profile-social ul {
+  display: flex;
+  width: max-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.profile-social__link {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  color: var(--text);
+  place-items: center;
+}
+
+.profile-social__icon {
+  display: block;
+  width: 24px;
+  height: 24px;
 }
 
 .contact-cta {
@@ -1690,11 +1775,6 @@ button {
   .works-recognition__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 48px;
-  }
-
-  .about__content {
-    grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
-    align-items: start;
   }
 
 }
@@ -2055,7 +2135,7 @@ button {
   }
 
   .capabilities,
-  .about {
+  .profile {
     padding-block: 128px;
   }
 
@@ -2147,19 +2227,37 @@ button {
     font-size: 0.75rem;
   }
 
-  .about__inner {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
+  .profile__layout {
+    grid-template-areas:
+      ". heading"
+      "photo content";
+    grid-template-columns: 168px minmax(0, 620px);
+    grid-template-rows: max-content auto;
     align-items: start;
-    gap: 24px;
+    justify-content: center;
+    gap: 40px clamp(48px, 5vw, 72px);
   }
 
-  .about__inner > .section-heading {
-    grid-column: 1 / span 4;
+  .profile__heading {
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
   }
 
-  .about__content {
-    grid-column: 6 / -1;
-    grid-template-columns: 1fr;
+  .profile__heading::after {
+    width: 96px;
+    margin-top: 32px;
+  }
+
+  .profile__photo,
+  .profile__content {
+    margin-top: 0;
+  }
+
+  .profile__photo {
+    width: 100%;
+  }
+
+  .profile__name {
+    font-size: clamp(2.4rem, 4.5vw, 4.25rem);
   }
 
   .contact-cta__inner {
@@ -2193,10 +2291,12 @@ button {
   .axis-featured__repo-link,
   .works-axis__app-link,
   .works-axis__repo-link,
-  .works-page__topline a {
+  .works-page__topline a,
+  .profile-social__link {
     transition:
       color 120ms ease-out,
       border-color 120ms ease-out,
+      opacity 120ms ease-out,
       transform 100ms ease-out;
   }
 
@@ -2215,6 +2315,10 @@ button {
   .works-axis__repo-link:hover,
   .works-page__topline a:hover {
     color: var(--text);
+  }
+
+  .profile-social__link:hover {
+    opacity: 0.64;
   }
 
   .works-axis__app-link:hover,
@@ -2295,7 +2399,8 @@ button {
 .axis-featured__repo-link:active,
 .works-axis__app-link:active,
 .works-axis__repo-link:active,
-.works-page__topline a:active {
+.works-page__topline a:active,
+.profile-social__link:active {
   transform: translateY(1px);
 }
 
@@ -2418,7 +2523,7 @@ button {
   .axis-featured,
   .works-page,
   .capabilities,
-  .about,
+  .profile,
   .contact-cta {
     background: Canvas;
   }
