@@ -1,2 +1,9 @@
 # Copy to .dev.vars only when local Worker bindings or secrets are required.
 NEXTJS_ENV=development
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=turnstile_site_key_replace_me
+TURNSTILE_SECRET_KEY=turnstile_secret_replace_me
+TURNSTILE_ALLOWED_HOSTNAMES=127.0.0.1,localhost
+CONTACT_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
+RESEND_API_KEY=re_replace_me
+CONTACT_TO_EMAIL=portfolio-inbox@example.com
+CONTACT_FROM_EMAIL="Portfolio <contact@example.com>"

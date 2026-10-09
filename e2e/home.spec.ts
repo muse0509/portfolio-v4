@@ -4,7 +4,7 @@ const sectionOrder = [
   "hero",
   "axis",
   "capabilities",
-  "about",
+  "profile",
   "contact",
 ];
 
@@ -260,6 +260,88 @@ test("renders Axis media with scroll autoplay and verified content", async ({ pa
     page.getByRole("heading", { name: "開発の進め方" }),
   ).toHaveCount(0);
   await expect(page.locator(".site-header")).not.toContainText("進め方");
+
+  const profileSection = page.locator("#profile");
+  await expect(profileSection).toHaveAttribute(
+    "aria-labelledby",
+    "profile-heading",
+  );
+  await expect(
+    page.getByRole("heading", { name: "プロフィール", level: 2 }),
+  ).toBeVisible();
+  await expect(page.getByText("Yusuke Kikuta", { exact: true })).toBeVisible();
+  await expect(
+    profileSection.getByText("フルスタックエンジニア", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    profileSection.getByText(
+      "事業と実装の間に立ち、曖昧な構想を検証可能なプロダクトへ進めることを大切にしています。",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(profileSection.locator(".profile__biography p")).toHaveCount(2);
+  await expect(profileSection.locator(".profile__photo")).toHaveAttribute(
+    "data-photo-state",
+    "available",
+  );
+  const profilePhoto = profileSection.getByRole("img", {
+    name: "Yusuke Kikutaのプロフィール写真",
+  });
+  await expect(profilePhoto).toBeVisible();
+  await expect(profilePhoto).toHaveAttribute("src", /yusukekikuta\.jpeg/);
+  await expect(profilePhoto).toHaveAttribute("loading", "lazy");
+  await expect(profileSection).not.toContainText(
+    /PROFILE|BACKGROUND|ABOUT|MUSIC|ENGINEERING|PRODUCT|BEYOND BUILD|CAREER|BIOGRAPHY/,
+  );
+
+  const profileLinks = profileSection.locator(".profile-social__link");
+  await expect(profileLinks).toHaveCount(4);
+  expect(
+    await profileLinks.evaluateAll((links) =>
+      links.map((link) => link.getAttribute("aria-label")),
+    ),
+  ).toEqual(["X", "LinkedIn", "GitHub", "Email"]);
+
+  for (const link of [
+    { label: "X", href: "https://x.com/muse_jp_sol" },
+    {
+      label: "LinkedIn",
+      href: "https://www.linkedin.com/in/yusukekikuta",
+    },
+    { label: "GitHub", href: "https://github.com/muse0509" },
+  ]) {
+    const profileLink = profileSection.getByRole("link", { name: link.label });
+    await expect(profileLink).toHaveAttribute("href", link.href);
+    await expect(profileLink).toHaveAttribute("target", "_blank");
+    await expect(profileLink).toHaveAttribute(
+      "rel",
+      /noopener noreferrer/,
+    );
+  }
+
+  const profileEmailLink = profileSection.getByRole("link", { name: "Email" });
+  await expect(profileEmailLink).toHaveAttribute(
+    "href",
+    "mailto:yusukekikuta.05@gmail.com",
+  );
+  await expect(profileEmailLink).not.toHaveAttribute("target", "_blank");
+
+  for (const profileLink of await profileLinks.all()) {
+    await expect(profileLink.locator("svg")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    const profileLinkBox = await profileLink.boundingBox();
+    expect(profileLinkBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+    expect(profileLinkBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await profileLink.focus();
+    expect(
+      await profileLink.evaluate(
+        (element) => getComputedStyle(element).outlineStyle,
+      ),
+    ).not.toBe("none");
+  }
+
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
   expect(missingResources).toEqual([]);
@@ -337,6 +419,47 @@ for (const viewport of viewports) {
       viewport.width >= 1024 ? 3 : viewport.width >= 640 ? 2 : 1,
     );
 
+    const profilePhotoBox = await page.locator(".profile__photo").boundingBox();
+    const profileLayoutBox = await page.locator(".profile__layout").boundingBox();
+    expect(profilePhotoBox?.width ?? 0).toBeGreaterThan(0);
+    expect((profilePhotoBox?.width ?? 0) / (profilePhotoBox?.height ?? 1)).toBeCloseTo(
+      4 / 5,
+      2,
+    );
+    expect((profilePhotoBox?.x ?? -1) + (profilePhotoBox?.width ?? 0)).toBeLessThanOrEqual(
+      viewport.width,
+    );
+    expect(
+      (profilePhotoBox?.width ?? 0) / (profileLayoutBox?.width ?? 1),
+    ).toBeLessThanOrEqual(viewport.width >= 1024 ? 0.2 : 0.38);
+
+    const profileColumns = await page
+      .locator(".profile__layout")
+      .evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+    expect(profileColumns.split(" ").length).toBe(viewport.width >= 1024 ? 2 : 1);
+
+    if (viewport.width >= 1024) {
+      const profileHeadingBox = await page
+        .locator(".profile__heading")
+        .boundingBox();
+      const profileContentBox = await page
+        .locator(".profile__content")
+        .boundingBox();
+      expect(profileHeadingBox?.x ?? -1).toBeCloseTo(profileContentBox?.x ?? -2, 0);
+      expect(profilePhotoBox?.y ?? -1).toBeCloseTo(profileContentBox?.y ?? -2, 0);
+    }
+
+    for (const paragraph of await page
+      .locator(".profile__introduction, .profile__biography p")
+      .all()) {
+      const wrapping = await paragraph.evaluate((element) => ({
+        lineBreak: getComputedStyle(element).lineBreak,
+        wordBreak: getComputedStyle(element).wordBreak,
+      }));
+      expect(wrapping.lineBreak).toBe("strict");
+      expect(wrapping.wordBreak).toBe("normal");
+    }
+
     for (const duration of await page
       .locator(".capability-core__duration, .capability-tech__duration")
       .all()) {
@@ -383,6 +506,9 @@ for (const viewport of viewports) {
       await capabilitySection.screenshot({
         path: `test-results/design/capabilities-${viewport.width}x${viewport.height}.png`,
       });
+      await page.locator(".profile").screenshot({
+        path: `test-results/design/profile-${viewport.width}x${viewport.height}.png`,
+      });
     }
   });
 }
@@ -416,13 +542,13 @@ for (const viewport of [
       .toBe(0);
 
     await page.evaluate(() => {
-      document.querySelector<HTMLElement>("#about")?.scrollIntoView({
+      document.querySelector<HTMLElement>("#profile")?.scrollIntoView({
         block: "start",
       });
     });
     const anchorGeometry = await page.evaluate(() => {
       const headerElement = document.querySelector<HTMLElement>(".site-header");
-      const targetElement = document.querySelector<HTMLElement>("#about");
+      const targetElement = document.querySelector<HTMLElement>("#profile");
 
       return {
         headerHeight: headerElement?.getBoundingClientRect().height ?? 0,
