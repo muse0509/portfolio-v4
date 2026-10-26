@@ -38,17 +38,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint web and root E2E
+      - name: Lint web, API, and root E2E
         run: pnpm lint
 
-      - name: Typecheck web and root E2E
+      - name: Typecheck web, API, and root E2E
         run: pnpm typecheck
 
       - name: Unit tests
         run: pnpm test
 
+      - name: API tests with local D1
+        run: pnpm test:api
+
+      - name: Build API Worker locally
+        run: pnpm build:api
+
       - name: Build OpenNext Worker
         run: pnpm build:worker
+
+      - name: Test Worker Service Binding and local D1
+        run: pnpm test:integration
 
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
