@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "pnpm --filter @portfolio-v4/web dev",
     "dev:api": "pnpm --filter @portfolio-v4/api dev",
+    "dev:worker": "pnpm --filter @portfolio-v4/web dev:worker",
     "build": "pnpm --filter @portfolio-v4/web build",
     "build:worker": "pnpm --filter @portfolio-v4/web build:worker",
     "build:api": "pnpm --filter @portfolio-v4/api build",
