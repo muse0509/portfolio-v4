@@ -20,4 +20,6 @@ The 2026-10-26 decision formally retains pnpm for package and workspace manageme
 - Keep TypeScript aliases and generated Next.js types relative to this app; keep `.next`, `.open-next`, and `.wrangler` out of Git.
 - Environment samples and types belong here. Local environment files are `.env.local` and `.dev.vars`; never expose or track their real values.
 - `wrangler.jsonc` refers to `.open-next/worker.js` and `.open-next/assets` from this app. Root commands delegate here; external build systems must use the workspace root for installation and the documented app configuration for deployment.
+- `API` is a Service Binding to `portfolio-v4-api`. `/api/health/backend` calls only its fixed `/health` endpoint and returns a generic unavailable response on failure. Do not add D1 access, a public-URL fallback, or a configurable proxy destination to Web.
+- Keep Next.js development (`pnpm dev`) distinct from built Worker validation (`pnpm build:worker`, then `pnpm dev:worker`). Use the root `pnpm test:integration` after building Web for real local Worker-to-Worker tests.
 - Preserve the existing routes, media, mobile menu, contact API, and development noindex rules during repository reorganization.

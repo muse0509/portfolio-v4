@@ -2,7 +2,7 @@
 
 エンジニア採用に向けて、菊田佑輔の開発実績、担当範囲、設計上の判断を伝える日本語のポートフォリオ・技術ブログを目指すリポジトリです。Solana・DeFiの経験を中心に紹介します。プロフィールと実績はコードで管理し、ブログ記事は将来自作する管理画面とDBで管理します。
 
-現在は既存の **Next.js / OpenNextアプリを `apps/web` に配置したpnpm workspace** です。ホーム `/`、実績 `/works`、問い合わせAPI `/api/contact` を維持しています。問い合わせフォームUI、ブログ、管理画面、独立したAPIアプリは未実装です。この整理では画面・文言・メディア・アニメーションを変更しません。
+現在は既存の **Next.js / OpenNextアプリを `apps/web` に配置したpnpm workspace** です。`apps/api` にHono / D1 / Drizzleのローカル接続基盤を追加しています。ホーム `/`、実績 `/works`、問い合わせAPI `/api/contact` は維持しています。問い合わせフォームUI、ブログ、管理画面、認証は未実装です。
 
 ## 現在の構成
 
@@ -18,6 +18,11 @@ apps/web/
   wrangler.jsonc           Workerとassetsの設定
   .env.example             Next.js向け環境変数サンプル
   .dev.vars.example        ローカルWorker向け環境変数サンプル
+apps/api/
+  src/                     HonoエントリーポイントとDrizzle接続
+  tests/                   ローカルWorker・D1の検証
+  wrangler.jsonc           API WorkerとローカルD1の設定
+  cloudflare-env.d.ts      Wranglerで生成したbinding・runtime型
 e2e/                       Playwright smoke test
 playwright.config.ts       E2E設定と開発サーバー起動
 .github/workflows/         リポジトリ全体のCI
@@ -27,9 +32,9 @@ pnpm-workspace.yaml        apps/*、packages/* と依存保護設定
 pnpm-lock.yaml             リポジトリ全体で単一のlockfile
 ```
 
-TypeScript・ESLint・Vitest・PostCSSのアプリ設定と型定義も `apps/web` にあります。ルートのTypeScript・ESLint設定は、`e2e` とPlaywright設定を検査対象に残すためのものです。pnpmの共有依存から参照されるReact型がリポジトリ外の旧版へ解決されないよう、既存と同じ `@types/react` 19.3.0をルートにも配置しています。`apps/api` と `packages/contracts` は導入時に作成するため、現時点では存在しません。
+TypeScript・ESLint・Vitest・PostCSSのWeb設定と型定義は `apps/web`、APIの設定は `apps/api` にあります。ルートのTypeScript・ESLint設定は、`e2e` とPlaywright設定を検査対象に残すためのものです。pnpmの共有依存から参照されるReact型がリポジトリ外の旧版へ解決されないよう、既存と同じ `@types/react` 19.3.0をルートにも配置しています。`packages/contracts` とoRPCは未導入です。
 
-Node.js **24.19.0**、pnpm **11.22.0** を使用します。現在のアプリはNext.js App Router、React、strict TypeScript、Tailwind CSS、Motion、OpenNext、Wrangler、Vitestで構成され、E2EにはPlaywrightを使用します。依存バージョンは各 `package.json` と単一lockfileで管理し、この整理では変更しません。`minimumReleaseAge`、`minimumReleaseAgeStrict`、`minimumReleaseAgeIgnoreMissingTime`、`trustLockfile`、`overrides`、`allowBuilds` の保護設定も維持します。
+Node.js **24.19.0**、pnpm **11.22.0** を使用します。現在のアプリはNext.js App Router、React、strict TypeScript、Tailwind CSS、Motion、OpenNext、Wrangler、Vitestで構成され、E2EにはPlaywrightを使用します。依存バージョンは各 `package.json` と単一lockfileで管理します。既存依存のバージョンを維持し、API用にHono 4.13.14とDrizzle ORM 0.45.4を追加しています。`minimumReleaseAge`、`minimumReleaseAgeStrict`、`minimumReleaseAgeIgnoreMissingTime`、`trustLockfile`、`overrides`、`allowBuilds` の保護設定も維持します。
 
 2026-10-26に、**パッケージ管理とworkspace管理にはpnpmを継続採用する**と正式に決定しました。既存のworkspace・CI・依存関係保護設定が整っており、今回のアプリケーションにBun固有の機能を必要としていないためです。単一の `pnpm-lock.yaml` と既存の保護設定を維持します。Bun移行は今後の必須タスクから外し、具体的な必要性が生じた場合だけ任意に再評価します。2026-10-24の「移行保留」という調査結果は、[決定と調査履歴](docs/package-manager-migration.md) に残しています。
 
@@ -46,27 +51,43 @@ pnpm dev
 
 環境変数が必要な場合は `apps/web/.env.example` を `apps/web/.env.local` へ、ローカルWorker用には `apps/web/.dev.vars.example` を `apps/web/.dev.vars` へコピーします。読み込み位置は `apps/web` です。実値を含むファイルはGit管理せず、ルートにアプリ用環境変数ファイルを置きません。問い合わせ処理の検証には既存のモックを使用し、実メールは送信しません。
 
+### ローカルAPIとの接続確認
+
+2つのターミナルで、ルートからそれぞれ `pnpm dev:api`（127.0.0.1:8787）と `pnpm dev`（Next.js、localhost:3000）を起動します。`GET http://localhost:3000/api/health/backend` が `200 {"status":"ok"}` なら、WebのService Binding → Hono → Drizzle → ローカルD1の読み取り確認が成功しています。API停止・DB障害・不正な上流応答では503を返します。
+
+OpenNextのビルド済みWorkerを確認する場合は、APIを起動したまま `pnpm build:worker` の後、別ターミナルで `pnpm dev:worker --port 8788` を実行し、`GET http://localhost:8788/api/health/backend` を確認します。Next.js開発サーバーとは別の実行方式です。Service BindingはAPI Worker名 `portfolio-v4-api` で解決し、通常のHTTP転送先は設定しません。
+
+D1はAPIだけにバインドし、`SELECT 1` による読み取り確認を行います。テーブル・本番用スキーマ・初回マイグレーションはまだありません。ローカル状態は `apps/api/.wrangler/` に保存され、Git管理対象外です。DB IDはローカル用のダミー値で、リモートDBは未作成です。APIの `workers_dev` / `preview_urls` は無効、公開ルートは未設定ですが、未デプロイのため本番の到達性は未検証です。
+
 ## ルートから実行するコマンド
 
 | コマンド | 用途 |
 | --- | --- |
 | `pnpm dev` | Next.js開発サーバー |
+| `pnpm dev:api` | Hono APIをローカルWorkerとして起動 |
+| `pnpm dev:worker --port 8788` | ビルド済みOpenNext Workerをローカル起動 |
 | `pnpm build` | Next.js production build |
 | `pnpm build:worker` | OpenNext Worker build |
+| `pnpm build:api` | API Workerのローカルビルド（dry-run、アップロードなし） |
 | `pnpm start` | Next.js production server |
-| `pnpm lint` | WebとルートのE2E関連コードを検査 |
+| `pnpm lint` | Web・API・ルートのE2E関連コードを検査 |
 | `pnpm typegen` | WebのNext.js route type生成 |
-| `pnpm typecheck` | Webのroute type生成・型検査とルートE2Eの型検査 |
+| `pnpm typecheck` | Webのroute type生成、APIの生成型確認、Web・API・ルートE2Eの型検査 |
 | `pnpm test` | WebのVitest unit test |
+| `pnpm test:api` | APIのエラー処理と実ローカルD1を検証 |
+| `pnpm test:integration` | ビルド済みWeb/APIのService BindingとD1を検証（先に `pnpm build:worker`） |
 | `pnpm test:e2e` | ルートのPlaywright smoke test |
-| `pnpm check` | lint・型・unit・Worker build（E2Eは別途実行） |
+| `pnpm check` | lint・型・Web/APIテスト・両Worker build・Worker間接続テスト（E2Eは別途実行） |
 | `pnpm preview` | Worker build後のローカルpreview |
 | `pnpm deploy` | Worker buildとdeploy（明示的な実行指示がある場合のみ） |
 | `pnpm cf-typegen` | `apps/web/cloudflare-env.d.ts` のCloudflare binding型生成 |
+| `pnpm cf-typegen:api` | `apps/api/cloudflare-env.d.ts` のCloudflare binding・runtime型生成 |
 
 Web用コマンドは `pnpm --filter @portfolio-v4/web ...` に明示的に委譲します。例えば `pnpm dev --hostname 127.0.0.1 --port 3100` は引数をWebの開発サーバーへ渡します。検査を分ける場合は `pnpm lint:web` / `pnpm lint:e2e`、`pnpm typecheck:web` / `pnpm typecheck:e2e` を使います。
 
 初回のE2E実行前にChromiumがなければ、ルートで `pnpm exec playwright install chromium` を実行します。Playwrightはルートを作業ディレクトリとして `pnpm dev --hostname 127.0.0.1 --port 3000` を起動します。CIもルートからinstall・各検査・Worker build・E2Eを実行します。
+
+APIのみの検査は `pnpm lint:api` / `pnpm typecheck:api` を使います。API・Worker間接続テストはWranglerのローカルtest harnessを利用し、テスト用D1は永続化しません。実メール送信、リモートD1接続、リモートマイグレーションは行いません。
 
 ## 開発中の検索除外と検証
 
@@ -89,11 +110,11 @@ Web用コマンドは `pnpm --filter @portfolio-v4/web ...` に明示的に委�
 - 生成物・assetsの参照先: `apps/web/.open-next/`
 - 本番の環境変数・secret: 既存の対象Workerへの設定を維持し、ファイルには保存しない
 
-`pnpm preview` はWorker環境を使用するため、接続先のbinding設定を確認して実行してください。deploy、push、PR作成、ブランチ操作、コミットはユーザーの明示指示がある場合にだけ行います。今回の成果物は未コミットのレビュー可能な差分です。
+`pnpm preview` はWorker環境を使用するため、接続先のbinding設定を確認して実行してください。deploy、push、PR作成、ブランチ操作、コミットはユーザーの明示指示がある場合にだけ行います。
 
 ## 今後の構成と作業順
 
-以下は**将来の採用方針**です。現在のNext.js / OpenNext、pnpm workspace、問い合わせAPIを維持し、今回これらへの移行や機能実装は行いません。責務・検証事項は [アーキテクチャ方針](docs/architecture.md) を参照してください。
+以下は**将来の全体構成の方針**です。Hono・D1・DrizzleとWeb/API間Service Bindingはローカル疎通基盤のみ実装済みです。Next.js / OpenNext、pnpm workspace、問い合わせAPIを維持し、フロントエンド移行・認証・ブログは未実装です。
 
 | 項目 | 採用方針 |
 | --- | --- |
@@ -109,13 +130,13 @@ Web用コマンドは `pnpm --filter @portfolio-v4/web ...` に明示的に委�
 | その他の開発ツール候補 | Turborepo / Lefthook / Oxlint / Oxfmt（いずれも未導入） |
 | 初期構成の参考 | Better T Stack（既存リポジトリへの生成処理は実行しない） |
 
-公開ページのSSRは将来実装する要件です。TanStack RouterをTanStack Startに読み替えず、実装方式は後続で検証します。pnpm・ESLint・Vitestなどの既存ツールを維持し、Turborepo・Lefthook・Oxlint・Oxfmtは今回導入しません。Bun移行や開発ツールの入れ替えは、バックエンド基盤の検証を始める前提条件ではありません。`apps/api`、`packages/contracts` の空ディレクトリや仮実装も追加しません。
+公開ページのSSRは将来実装する要件です。TanStack RouterをTanStack Startに読み替えず、実装方式は後続で検証します。pnpm・ESLint・Vitestなどの既存ツールを維持し、Turborepo・Lefthook・Oxlint・Oxfmtは今回導入しません。Bun移行や開発ツールの入れ替えは、バックエンド基盤の検証を始める前提条件ではありません。`packages/contracts` は導入時まで作成しません。
 
-作業順は **リポジトリ整理（実施済み・未コミット差分あり）→ バックエンド基盤と認証の検証 → ブログAPI → フロントエンド実装** です。今回は文書更新のみで、既存の問い合わせAPIを含むアプリの動作は変更しません。見た目は画像生成で複数案を比較し、トークン・モーションを含む仕様を確定してから実装します。今回の完了後にバックエンドやフロントエンドの実装へ自動的に進みません。
+作業順は **リポジトリ整理（実施済み）→ バックエンド基盤と認証の検証 → ブログAPI → フロントエンド実装** です。現在はローカル接続基盤までで、認証・実スキーマ・初回マイグレーションは後続です。見た目は画像生成で複数案を比較し、仕様を確定してから実装します。
 
 ## 文書の位置づけ
 
-現在の目的・構成はこのREADME、将来の採用方針・責務・移行順は [アーキテクチャ方針](docs/architecture.md)、作業上の制約は [AGENTS.md](AGENTS.md) を参照してください。Next.jsを変更する際は [apps/web/AGENTS.md](apps/web/AGENTS.md) と、その配下のインストール済みNext.jsガイドを読みます。
+現在の配置・実行手順はこのREADME、作業上の制約は [AGENTS.md](AGENTS.md) を参照してください。詳細設計・調査・作業記録はリポジトリ外で管理します。既存 [アーキテクチャ方針](docs/architecture.md) と以下の資料は過去の記録として保持し、今回のAPI追加は反映していません。Next.jsを変更する際は [apps/web/AGENTS.md](apps/web/AGENTS.md) と、その配下のインストール済みNext.jsガイドを読みます。
 
 - [初期要件 v0.1](docs/requirements-v0.1.md): 過去の業務委託向け方針と初期基盤の履歴
 - [UI画像生成ワークフロー](docs/ui-image-workflow.md): 既存案の検討履歴と、再設計時にも使用する比較手順
