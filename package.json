@@ -18,6 +18,7 @@
     "typegen": "pnpm --filter @portfolio-v4/web typegen",
     "test": "pnpm --filter @portfolio-v4/web test",
     "test:api": "pnpm --filter @portfolio-v4/api test",
+    "test:integration": "pnpm --filter @portfolio-v4/web test:integration",
     "preview": "pnpm --filter @portfolio-v4/web preview",
     "deploy": "pnpm --filter @portfolio-v4/web deploy",
     "cf-typegen": "pnpm --filter @portfolio-v4/web cf-typegen",
@@ -31,7 +32,7 @@
     "typecheck:api": "pnpm --filter @portfolio-v4/api typecheck",
     "typecheck:e2e": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:api && pnpm build:api && pnpm build:worker"
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:api && pnpm build:api && pnpm build:worker && pnpm test:integration"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

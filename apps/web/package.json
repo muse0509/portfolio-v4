@@ -17,6 +17,7 @@
     "typegen": "next typegen",
     "typecheck": "pnpm typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build:worker",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
