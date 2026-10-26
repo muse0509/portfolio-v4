@@ -18,6 +18,9 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,10 +38,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - name: Lint web and root E2E
         run: pnpm lint
 
-      - name: Typecheck
+      - name: Typecheck web and root E2E
         run: pnpm typecheck
 
       - name: Unit tests

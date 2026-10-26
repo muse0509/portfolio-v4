@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
 const host = "127.0.0.1";
@@ -23,6 +24,7 @@ export default defineConfig({
   ],
   webServer: {
     command: `pnpm dev --hostname ${host} --port ${port}`,
+    cwd: fileURLToPath(new URL(".", import.meta.url)),
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

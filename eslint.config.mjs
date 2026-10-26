@@ -1,24 +1,8 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import webConfig from "./apps/web/eslint.config.mjs";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    ".open-next/**",
-    ".wrangler/**",
-    "coverage/**",
-    "out/**",
-    "build/**",
-    "playwright-report/**",
-    "test-results/**",
-    "next-env.d.ts",
-    "cloudflare-env.d.ts",
-  ]),
+// Keep the existing rules for root tooling and E2E; each app is linted separately.
+export default defineConfig([
+  ...webConfig,
+  globalIgnores(["apps/**", "packages/**"]),
 ]);
-
-export default eslintConfig;
