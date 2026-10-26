@@ -18,6 +18,9 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,17 +38,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - name: Lint web, API, and root E2E
         run: pnpm lint
 
-      - name: Typecheck
+      - name: Typecheck web, API, and root E2E
         run: pnpm typecheck
 
       - name: Unit tests
         run: pnpm test
 
+      - name: API tests with local D1
+        run: pnpm test:api
+
+      - name: Build API Worker locally
+        run: pnpm build:api
+
       - name: Build OpenNext Worker
         run: pnpm build:worker
+
+      - name: Test Worker Service Binding and local D1
+        run: pnpm test:integration
 
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium

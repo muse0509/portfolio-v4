@@ -8,6 +8,13 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "services": [
+    {
+      "binding": "API",
+      "service": "portfolio-v4-api",
+      "remote": false
+    }
+  ],
   "observability": {
     "enabled": true
   }
