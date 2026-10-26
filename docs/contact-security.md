@@ -1,5 +1,7 @@
 # 問い合わせメールのセキュリティ設計
 
+現在の実装は `apps/web/src/app/api/contact/route.ts` にあります。今回のworkspace整理ではAPIの仕様を変更せず、将来のHono APIとは区別して維持します。現在の構成は [README](../README.md)、将来の構成・責務は [アーキテクチャ方針](architecture.md) を参照してください。将来のD1・R2導入によって、下記の問い合わせデータを保存しない制約は変更しません。
+
 `POST /api/contact` は、将来の `/contact` フォームから受け取った問い合わせを検証し、Resend REST APIで `CONTACT_TO_EMAIL` へ転送するRoute Handlerです。フォームUI、添付ファイル、自動返信、問い合わせ内容の永続化はこの実装に含みません。
 
 ## API contract
@@ -142,7 +144,7 @@ custom responseのContent-Typeは `application/json`、可能なら `Cache-Contr
 | `CONTACT_TO_EMAIL` | secret | 問い合わせ配送先 |
 | `CONTACT_FROM_EMAIL` | server | Resendで認証済みの送信元 |
 
-`.env.example` と `.dev.vars.example` にはダミー値だけを置きます。ローカルの `next dev` ではignore対象の `.env.local`、OpenNextのローカルWorkerではignore対象の `.dev.vars` へコピーして実値または各providerのtest値へ置き換えます。本番のsecretはCloudflare dashboardまたは `wrangler secret put` で設定し、ファイル、Git、client bundleへ含めません。`NEXT_PUBLIC_` をsecretへ付けてはいけません。
+`apps/web/.env.example` と `apps/web/.dev.vars.example` にはダミー値だけを置きます。ローカルの `next dev` ではignore対象の `apps/web/.env.local`、OpenNextのローカルWorkerではignore対象の `apps/web/.dev.vars` へコピーして実値または各providerのtest値へ置き換えます。本番のsecretはCloudflare dashboardまたは `apps/web` で実行する `pnpm exec wrangler secret put` で設定し、ファイル、Git、client bundleへ含めません。`NEXT_PUBLIC_` をsecretへ付けてはいけません。
 
 ## データとログ
 
@@ -152,9 +154,11 @@ custom responseのContent-Typeは `application/json`、可能なら `Cache-Contr
 
 unit testではTurnstileとResendの `fetch` をmockし、実ネットワークや実メール送信を行いません。
 
-1. `.env.example` を `.env.local` へ、必要なら `.dev.vars.example` を `.dev.vars` へコピーする。
+通常の検証コマンドは実値の設定や実メール送信を必要としません。以下は別途接続先を検証する際の設定手順であり、workspace整理では行いません。
+
+1. `apps/web/.env.example` を `apps/web/.env.local` へ、必要なら `apps/web/.dev.vars.example` を `apps/web/.dev.vars` へコピーする。
 2. ダミー値をCloudflare Turnstileのtest key、localhost hostname、Resendの安全なtest設定へ置き換える。
-3. `pnpm test`、`pnpm lint`、`pnpm typecheck`、`pnpm build`、`pnpm build:worker`、`pnpm test:e2e` を実行する。
+3. リポジトリルートから `pnpm test`、`pnpm lint`、`pnpm typecheck`、`pnpm build`、`pnpm build:worker`、`pnpm test:e2e` を実行する。
 
 ## Production smoke test
 

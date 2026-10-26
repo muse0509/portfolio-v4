@@ -2,8 +2,9 @@
 
 更新日: 2026-08-27
 
-> この文書は初期基盤時点の履歴です。現在のホーム画面構成と表現は
-> `docs/design/concepts/product-cinema/DESIGN_SPEC.md` を正とします。
+> この文書は初期基盤時点の履歴です。業務委託向けの目的、初期スコープ、コミットを含む完了条件は当時のものです。
+> 現在の採用向けの目的・構成は [README](../README.md)、将来の採用方針・移行順は [アーキテクチャ方針](architecture.md)、作業制約は [AGENTS.md](../AGENTS.md) を参照してください。
+> 既存画面の資料は [Product Cinema仕様](design/concepts/product-cinema/DESIGN_SPEC.md) に残し、今回の整理ではUIを変更しません。
 
 ## 目的
 
@@ -64,7 +65,7 @@ Foundation pageには次を表示する。
 - `事業を理解し、要件定義から設計・実装・改善までを一貫して進めるフルスタックエンジニア。`
 - 次工程でUIコンセプト画像を生成することを示す小さなステータス
 
-サイト文言は可能な限り `src/content/site.ts` で管理する。
+サイト文言は可能な限り `apps/web/src/content/site.ts` で管理する。
 
 ## 開発・公開要件
 

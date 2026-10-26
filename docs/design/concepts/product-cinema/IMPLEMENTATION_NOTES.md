@@ -1,5 +1,7 @@
 # Product Cinema — Implementation Notes
 
+> この資料は現在維持しているNext.js UIの実装記録です。再設計の目的は [README](../../../../README.md)、予定構成・作業順は [アーキテクチャ方針](../../../architecture.md) を参照してください。今回の変更は `apps/web` への配置整理であり、以下の見た目・文言・メディア・モーションを変更しません。
+
 参照画像と `DESIGN_SPEC.md` から、ホームへ反映する構造を抽出した。参照PNGは比較用に限り、本番UIには埋め込まない。
 
 ## レイアウトとレスポンシブ
@@ -17,7 +19,7 @@
 - 設定済み動画は`IntersectionObserver`で表示面積55%以上からミュート再生し、15%以下で一時停止する。reduced motionと省データ設定では中央の手動再生ボタンを維持する。
 - `/works`は同じAxisデータに加え、2026-08-27に公開対象として提供された4件の匿名実績、受賞3件、登壇2件を掲載する。個別詳細ルートは作らず、各案件の矢印も表示しない。
 - `/works`のAxisはHomeと同じロゴを使用する。Axisアプリと公開GitHubリポジトリへの直接リンクは残すが、矢印記号は付けない。
-- Capabilitiesは`CAPABILITY INDEX / 2026.08`を起点に、主要6技術のCORE STACKと3カテゴリ12技術のEXTENDED STACKで構成する。技術情報は`src/content/capability-index.ts`で管理し、Simple IconsまたはFont Awesome BrandsのSVGデータを共通`TechIcon`から`currentColor`で描画する。公式アイコンがないAWSには代替ロゴを作らず、プレーンテキストで表示する。
+- Capabilitiesは`CAPABILITY INDEX / 2026.08`を起点に、主要6技術のCORE STACKと3カテゴリ12技術のEXTENDED STACKで構成する。技術情報は`apps/web/src/content/capability-index.ts`で管理し、Simple IconsまたはFont Awesome BrandsのSVGデータを共通`TechIcon`から`currentColor`で描画する。公式アイコンがないAWSには代替ロゴを作らず、プレーンテキストで表示する。
 - COREはMobile 2列、Tablet / 1024pxで3列、1200px以上で6列。EXTENDEDはMobile 1列、Tablet 2列、1024px以上で3列にし、個別の箱やピルを使わず技術名と年数を左右に揃える。
 - Aboutは写真のプレースホルダーを置かず、実在するプロフィール情報だけを表示する。
 - Contactは利用できないCTAを置かず、窓口の準備状況を明記する。床面光はAxisより弱くする。
@@ -45,6 +47,6 @@
 ## メディアとコンテンツ境界
 
 - AxisはDevnetで実資金取引ではないことを明示する。2026-08-27に公開対象として提供された`約1か月で再構築`、`Devnet 約400ユーザー`、`2,100件超のETF作成`以外の数値・成果・画面は作らない。
-- 文面、事実、nullableなメディア設定、導線は `src/content/site.ts` に集約し、詳細ルートがない項目を架空リンクにしない。
+- 文面、事実、nullableなメディア設定、導線は `apps/web/src/content/site.ts` に集約し、詳細ルートがない項目を架空リンクにしない。
 - `SELECTED WORK / 01`と`LAUNCH TEASER / 00:42`はセクション識別・映像識別としてのみ使用する。意味のない大文字ラベル、連番、装飾用スラッシュ、Pending表記は追加しない。
-- 将来の確認済みアセットは`public/media/axis/axis-logo.svg`、`axis-teaser.mp4`、`axis-teaser-poster.webp`へ置く。
+- 将来の確認済みアセットは`apps/web/public/media/axis/axis-logo.svg`、`axis-teaser.mp4`、`axis-teaser-poster.webp`へ置く。

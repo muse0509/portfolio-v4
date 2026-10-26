@@ -1,5 +1,7 @@
 # UIコンセプト画像ワークフロー
 
+> 以下の目的・画面構成・3方向は既存UIの検討履歴です。現在の採用向けの目的は [README](../README.md)、将来の採用方針と作業順は [アーキテクチャ方針](architecture.md) を参照してください。再設計時も画像生成・比較・仕様確定を実装より先に行いますが、要件と比較基準を採用向けに見直します。今回のリポジトリ整理では画像生成やUI変更を行いません。
+
 ## 目的
 
 React実装前に、同一要件からPC・モバイルの視覚案を3方向生成し、好みだけでなく案件獲得に必要な情報伝達の強さで比較する。生成画像はコンセプト検討用であり、実績の証拠には使わない。
@@ -33,8 +35,8 @@ Hero直後からAxisを強く見せ、課題・役割・実装・証拠の順で
 
 ## 画像の扱い
 
-- コンセプト画像: `public/images/concepts/<direction>/`
-- 実在プロダクト画像: `public/images/product/axis/`
+- コンセプト画像: `apps/web/public/images/concepts/<direction>/`
+- 実在プロダクト画像: `apps/web/public/images/product/axis/`
 - 生成画像にAxisの架空UIを描かせない。必要な箇所はプレースホルダーとして明示する。
 - 生成物には方向名、viewport、生成日、プロンプト版を対応するREADMEへ記録する。
 
@@ -53,4 +55,4 @@ Hero直後からAxisを強く見せ、課題・役割・実装・証拠の順で
 
 ## 採用後
 
-採用案から色、文字サイズ、行間、最大幅、余白、境界線、角丸をdesign tokenとして抽出する。モーションは目的、開始条件、duration、easing、interrupt、reduced-motion時の挙動を仕様化する。その仕様レビュー後にServer Componentを基本としてReact実装を始める。
+採用案から色、文字サイズ、行間、最大幅、余白、境界線、角丸をdesign tokenとして抽出する。モーションは目的、開始条件、duration、easing、interrupt、reduced-motion時の挙動を仕様化する。その仕様レビュー後にReact実装を始める。既存案はNext.jsのServer Componentを前提としていたが、将来の再設計はReact + TanStack Routerと公開ページSSRの要件を前提に仕様を確定する。SSRの構成は後続工程で検証し、TanStack Startを前提にしない。
