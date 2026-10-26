@@ -1,0 +1,31 @@
+{
+  "name": "@portfolio-v4/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "pnpm": "11.22.0"
+  },
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "build": "wrangler deploy --dry-run --outdir .wrangler/build",
+    "cf-typegen": "wrangler types --env-interface ApiEnv cloudflare-env.d.ts",
+    "typecheck": "wrangler types --env-interface ApiEnv cloudflare-env.d.ts --check && tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.14"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.67.0",
+    "vitest": "5.0.0",
+    "wrangler": "4.131.0"
+  }
+}
