@@ -6,7 +6,7 @@ Portfolio V4 presents Yusuke Kikuta’s development work, responsibilities, and 
 
 The current implementation includes the existing Next.js App Router / OpenNext application in `apps/web`, its contact API, and a Hono API Worker in `apps/api`, managed with pnpm workspace. The API foundation connects to local D1 through Drizzle and is reached from Web through Service Binding. See [README.md](README.md) for current structure and commands. Existing `docs/` files preserve earlier decisions; detailed design, investigation, and work logs are maintained outside this repository.
 
-The future design uses TypeScript, React + TanStack Router, Hono, oRPC, Better Auth with its Passkey plugin, Cloudflare D1 (SQLite), and Drizzle ORM. Only the Hono/D1/Drizzle foundation and local Web/API Service Binding are implemented. Authentication, blog features, oRPC, and the future frontend remain unimplemented. DB, private R2 storage, and Cloudflare Images Workers bindings belong to the API Worker; use Workers Static Assets for static files and Workers Logs for logs. Public-page SSR is a future requirement; do not substitute TanStack Start for TanStack Router.
+The future design uses TypeScript, React + TanStack Router, Hono, oRPC, Better Auth with its Passkey plugin, Cloudflare D1 (SQLite), and Drizzle ORM. The Hono/D1/Drizzle foundation, local Web/API Service Binding, and local administrator Passkey authentication with its initial migration are implemented. Blog features, oRPC, the admin UI, recovery/backup keys, and the future frontend remain unimplemented. Production authentication configuration is not yet validated. DB, private R2 storage, and Cloudflare Images Workers bindings belong to the API Worker; use Workers Static Assets for static files and Workers Logs for logs. Public-page SSR is a future requirement; do not substitute TanStack Start for TanStack Router.
 
 The 2026-10-26 decision is to continue using pnpm for package and workspace management in both the current and future architecture. The existing workspace, CI, and dependency protections are established, and this application does not require Bun-specific features. Bun migration is not a required future task; reconsider it only as an optional evaluation when a concrete need arises.
 
@@ -19,12 +19,12 @@ See [docs/package-manager-migration.md](docs/package-manager-migration.md) for t
 Keep the existing Node.js 24.19.0, pnpm 11.22.0, and dependency versions unless the task explicitly requests an update. Preserve `minimumReleaseAge`, `minimumReleaseAgeStrict`, `minimumReleaseAgeIgnoreMissingTime`, `trustLockfile`, `overrides`, and `allowBuilds`. Keep the root `pnpm-lock.yaml` as the only lockfile; do not add Bun, npm, Yarn, or app-specific lockfiles.
 
 - `apps/web`: Next.js, React, strict TypeScript, Tailwind CSS, Motion, OpenNext, Wrangler, and Vitest
-- `apps/api`: Hono Worker, Drizzle connection to local D1, generated binding types, and local Worker tests
+- `apps/api`: Hono Worker, local D1/Drizzle, Better Auth/Passkey, generated auth schema, migrations, operator CLI, and local Worker tests
 - `apps/web/src/app`: routes, metadata, robots, and the existing contact API
 - `apps/web/src/content`: reviewed site copy, profile, and project records
 - `apps/web/public/images/concepts`: generated concept candidates only
 - `apps/web/public/images/product`: verified real product captures only
-- `e2e` and `playwright.config.ts`: repository-level Playwright smoke tests
+- `e2e`, `playwright.config.ts`, and `playwright.auth.config.ts`: repository-level smoke tests and isolated authentication browser tests
 - `docs`: requirements, design history, UI workflow, and security decisions
 - Root `package.json`, `pnpm-workspace.yaml`, and the single `pnpm-lock.yaml`: workspace management
 
@@ -43,24 +43,30 @@ Run from the repository root:
 - `pnpm test:api`, `pnpm build:api`: API tests and local dry-run build
 - `pnpm test:integration`: built Web/API Service Binding and D1 tests; build Web first
 - `pnpm test:e2e`: Chromium smoke tests
+- `pnpm test:e2e:auth`: test-only browser authentication fixture and virtual authenticator; build Web first and leave port 8788 free
+- `pnpm auth:setup:local`, `pnpm db:migrate:local`, `pnpm auth:issue:local`: prepare the local API secret, migrate local D1, then issue an initial registration permit
+- `pnpm auth:schema:generate`, `pnpm db:generate`: regenerate auth models and SQL using pinned local CLIs
 - `pnpm check`: lint, types, Web/API tests, both Worker builds, and integration tests; run E2E separately
 
-The root owns E2E dependencies and validation; do not silently drop `e2e` or `playwright.config.ts` from lint or type checking. App environment files load from `apps/web/.env.local` and `apps/web/.dev.vars`.
+The root owns E2E dependencies and validation; do not silently drop `e2e` or either Playwright configuration from lint or type checking. App environment files load from `apps/web/.env.local`, `apps/web/.dev.vars`, and `apps/api/.dev.vars`. Local authentication uses only `http://localhost:8788` with RP ID `localhost`; normal Web development on port 3000 is sufficient for health checks, not authentication validation.
 
 ## Workflow and safeguards
 
-- Work in this order: repository organization (completed) → backend foundation and authentication validation → blog API → frontend implementation. The current scope is local backend connectivity; authentication and schema/migrations come later.
+- Work in this order: repository organization (completed) → backend foundation and authentication validation → blog API → frontend implementation. The current scope includes local administrator authentication, its schema, and local migrations.
 - For future UI work, fix requirements, generate three desktop/mobile concept directions, compare them, select one, extract tokens and motion rules, and review the specification before implementation.
 - Existing requirements, architecture, and Product Cinema documents preserve earlier decisions; current implementation is described in README. Preserve UI, copy, assets, animation, and the contact API. Do not add report-only files or new `docs/` records for this task, or assume access to external design documents.
 - Keep D1 access in the API Worker. The Web health route must call only the fixed Service Binding endpoint, never a user-selected proxy destination or remote fallback. Keep API `workers_dev` and `preview_urls` disabled, with no public routes. Local-only verification does not prove deployed reachability.
+- Keep authentication paths and methods allowlisted at both Web and API boundaries. The API owns administrator authorization, origin validation, Passkey verification, and sessions. Preserve the atomic D1 batch for initial key persistence and permit consumption; never insert sessions through an operator script or use interactive D1 transactions.
 - Never fabricate Axis screens, metrics, or results. Use verified Devnet captures and label them as Devnet with no real-fund trading.
 - Never modify `portfolio_no.3` or any sibling project.
 - Never expose, copy into tracked files, or commit secrets, real `.env`/`.dev.vars` files, API keys, private email addresses, or inquiry PII. Keep only dummy values in environment samples.
+- Registration permits belong only in the ignored 0600 operator file and the registration request header, never URLs, command arguments, logs, or reports. Do not record authentication cookies, tokens, credentials, or secret values in Playwright traces, screenshots, videos, or storage-state files. Keep the browser test entry point outside production routes.
 - Use the existing contact mocks during verification; do not send real email.
 - Preserve user changes. Inspect the current branch and working tree before work. Only create, switch, or delete branches, commit, push, open a PR, or deploy when explicitly requested. When a new branch is requested, base it on `main` unless instructed otherwise; the initial foundation is recorded on `setup/initial-foundation`.
+- When branch and PR work is authorized, keep one task per branch and PR.
 - Do not modify external Cloudflare settings as part of local repository organization. Do not reset, clean, restore, check out over, or stash user changes.
 - Do not invent unspecified limits, authentication lifetimes, or backup retention periods. Record them as open decisions for the appropriate validation phase.
-- Stop after the authorized local foundation and validation; do not proceed into authentication, blog, or frontend implementation.
+- Stop after the authorized local foundation and authentication validation; do not proceed into account recovery, backup-key management, blog, or frontend implementation.
 
 ## Completion criteria
 
