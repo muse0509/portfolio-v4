@@ -1,8 +1,12 @@
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDatabase } from "./db";
+import { handleAuthentication } from "./auth/routes.ts";
 
 const app = new Hono<{ Bindings: ApiEnv }>();
+
+app.all("/api/auth/*", (c) => handleAuthentication(c.req.raw, c.env));
+app.all("/api/admin/*", (c) => handleAuthentication(c.req.raw, c.env));
 
 app.onError((_error, c) => {
   c.header("Cache-Control", "no-store");
