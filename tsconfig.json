@@ -3,6 +3,7 @@
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": false,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -20,7 +21,9 @@
     "e2e/**/*.ts",
     "e2e/**/*.tsx",
     "e2e/**/*.mts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "playwright.auth.config.ts",
+    "apps/api/cloudflare-env.d.ts"
   ],
   "exclude": ["node_modules"]
 }
