@@ -29,13 +29,13 @@
     "hono": "4.13.14"
   },
   "devDependencies": {
-    "auth": "1.7.12",
+    "auth": "1.7.14",
     "drizzle-kit": "0.31.11",
-    "@types/node": "24.13.3",
-    "eslint": "9.39.5",
-    "typescript": "5.9.3",
-    "typescript-eslint": "8.67.0",
-    "vitest": "5.0.0",
-    "wrangler": "4.131.0"
+    "@types/node": "26.6.5",
+    "eslint": "10.13.0",
+    "typescript": "7.0.2",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.0.5",
+    "wrangler": "4.153.0"
   }
 }
