@@ -22,9 +22,9 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "1.7.12",
-    "@better-auth/passkey": "1.7.12",
-    "better-auth": "1.7.12",
+    "@better-auth/drizzle-adapter": "1.7.14",
+    "@better-auth/passkey": "1.7.14",
+    "better-auth": "1.7.14",
     "drizzle-orm": "0.45.4",
     "hono": "4.13.14"
   },
