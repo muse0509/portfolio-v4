@@ -1,0 +1,1 @@
+DROP INDEX `passkey_user_id_unique`;

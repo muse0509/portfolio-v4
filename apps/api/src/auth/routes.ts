@@ -92,7 +92,7 @@ export async function handleAuthentication(request: Request, env: ApiEnv): Promi
     if (url.pathname === "/api/admin/session" || url.pathname === "/api/auth/get-session") {
       const session = await auth.api.getSession({ headers, returnHeaders: true });
       if (state.databaseFailed) return json(503, { error: "unavailable" });
-      if (!session.response) return json(401, { error: "unauthorized" });
+      if (!session.response) return appendCookies(session.headers, json(401, { error: "unauthorized" }));
       if (session.response.session.userId !== config.adminUserId || session.response.user.id !== config.adminUserId) {
         return json(403, { error: "forbidden" });
       }

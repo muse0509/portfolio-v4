@@ -20,7 +20,7 @@ apps/web/
   .dev.vars.example        ローカルWorker向け環境変数サンプル
 apps/api/
   src/                     Hono、Drizzle接続、管理者認証と生成スキーマ
-  migrations/              認証用の初回マイグレーション
+  migrations/              認証用の初回・複数パスキー対応マイグレーション
   scripts/local-auth.ts    ローカルsecret準備と初回登録許可の発行
   tests/                   ローカルWorker・D1・認証の検証
   wrangler.jsonc           API WorkerとローカルD1の設定
@@ -60,7 +60,7 @@ pnpm dev
 
 OpenNextのビルド済みWorkerを確認する場合は、APIを起動したまま `pnpm build:worker` の後、別ターミナルで `pnpm dev:worker --port 8788` を実行し、`GET http://localhost:8788/api/health/backend` を確認します。Next.js開発サーバーとは別の実行方式です。Service BindingはAPI Worker名 `portfolio-v4-api` で解決し、通常のHTTP転送先は設定しません。
 
-D1はAPIだけにバインドし、healthでは `SELECT 1` による読み取り確認を行います。認証用に `user`、`session`、`account`、`verification`、`passkey`、`bootstrap_grant` の6テーブルと初回マイグレーションがあります。ローカル状態は `apps/api/.wrangler/` に保存され、Git管理対象外です。DB IDはローカル用のダミー値で、リモートDBは未作成です。APIの `workers_dev` / `preview_urls` は無効、公開ルートは未設定ですが、未デプロイのため本番の到達性は未検証です。
+D1はAPIだけにバインドし、healthでは `SELECT 1` による読み取り確認を行います。認証用に `user`、`session`、`account`、`verification`、`passkey`、`bootstrap_grant` の6テーブルがあります。ユーザーとパスキーは1対多で、credential IDは全ユーザーを通して一意です。初回マイグレーション適用済みのDBにも、`pnpm db:migrate:local` で追加の `0001_multiple_passkeys.sql` を適用してください。この移行はユーザー単位の一意インデックスだけを削除し、既存データ、主キー・外部キー、検索用インデックスを保持します。DBの削除・初期化は不要です。ローカル状態は `apps/api/.wrangler/` に保存され、Git管理対象外です。DB IDはローカル用のダミー値で、リモートDBは未作成です。APIの `workers_dev` / `preview_urls` は無効、公開ルートは未設定ですが、未デプロイのため本番の到達性は未検証です。
 
 ### ローカル管理者認証
 
@@ -74,7 +74,9 @@ pnpm auth:issue:local
 
 `setup` は `apps/api/.dev.vars` がない場合だけランダムsecretを0600権限で作成し、既存ファイルを上書きしません。`issue` はサーバー設定の `ADMIN_USER_ID` に対する初回登録許可を発行し、`apps/api/.wrangler/registration-permit.txt` のパスだけを表示します。許可の原文は0600権限のこのファイル、DBにはハッシュだけを保存します。どちらのファイルもGit管理対象外です。原文をURL、コマンド引数、ログ、報告へ転記しないでください。
 
-登録許可は10分で失効し、未使用なら再発行で以前の許可が無効になります。初回パスキー1本の保存と許可の消費はD1バッチで一体化しています。保存・消費後にセッション作成やログインが失敗した場合は通常のログインを再試行します。初回登録許可は再発行できず、キー紛失時の復旧と予備キー登録は未実装です。
+同じローカルDBへの `issue` は直列に実行してください。同時実行ではDBの再発行順序と許可ファイルの保存順序が逆転し、ファイルに無効な許可が残る可能性があります。この場合も登録は拒否されます。すべての発行処理が終了してから、改めて1回だけ再発行してください。
+
+登録許可は10分で失効し、未使用なら再発行で以前の許可が無効になります。初回パスキー1本の保存と許可の消費はD1バッチで一体化し、消費更新が0件でもキーだけが確定しないようSQL内で検査します。登録完了は `bootstrap_grant.consumed_at` / `credential_id` に保持し、将来パスキーを削除してもこの記録を消去して初回登録を再開させない設計です。保存・消費後にセッション作成やログインが失敗した場合は通常のログインを再試行します。複数の保存済みパスキーによるログインには対応しますが、初回登録経路での追加登録と消費済み許可の再発行はできません。予備キーの追加・削除APIと全紛失時の復旧は未実装です。
 
 認証のローカルURLは **`http://localhost:8788`、RP IDは `localhost`** に固定しています。`pnpm dev:api` と、`pnpm dev --port 8788` またはビルド後の `pnpm dev:worker --port 8788` を別ターミナルで起動します。通常の `pnpm dev`（3000番）では上記healthの疎通を確認し、認証は8788番で検証してください。セッションはローカル検証用に8時間、更新間隔1時間、cookie cache無効で、チャレンジは固定版プラグインの既定値5分です。本番向けHTTPS / Secure Cookieの設定分岐はありますが、本番ドメインは未確定・未検証です。
 

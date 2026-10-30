@@ -111,7 +111,6 @@ export const passkey = sqliteTable(
     aaguid: text("aaguid"),
   },
   (table) => [
-    uniqueIndex("passkey_user_id_unique").on(table.userId),
     uniqueIndex("passkey_credential_id_unique").on(table.credentialID),
     index("passkey_userId_idx").on(table.userId),
     index("passkey_credentialID_idx").on(table.credentialID),

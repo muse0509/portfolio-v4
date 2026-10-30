@@ -142,6 +142,70 @@ describe("initial registration persistence on local D1", () => {
     expect(saved.grant?.consumed_at).toBeNull();
   });
 
+  it("rejects a future-issued grant and a deleted grant at persistence", async () => {
+    const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
+    const authorization = await authorize(issued.permit, "credential-invalid-grant");
+    await binding.prepare("UPDATE bootstrap_grant SET issued_at = expires_at + 1 WHERE user_id = ?").bind(ADMIN_USER_ID).run();
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toBeInstanceOf(RegistrationPermitError);
+    await binding.prepare("DELETE FROM bootstrap_grant WHERE user_id = ?").bind(ADMIN_USER_ID).run();
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toBeInstanceOf(RegistrationPermitError);
+    expect((await storedState()).passkeys).toHaveLength(0);
+  });
+
+  it("rejects replay, additional bootstrap keys, and reissue even after all keys are deleted", async () => {
+    const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
+    const authorization = await authorize(issued.permit, "credential-first");
+    await savePasskey(authorization, authorization.credentialId);
+    const completed = (await storedState()).grant;
+
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toBeInstanceOf(RegistrationPermitError);
+    await expect(savePasskey({ ...authorization, credentialId: "credential-extra" }, "credential-extra"))
+      .rejects.toBeInstanceOf(RegistrationPermitError);
+    expect((await storedState()).passkeys).toHaveLength(1);
+
+    // Future key management must retain this completion record when deleting keys.
+    await binding.prepare("DELETE FROM passkey WHERE user_id = ?").bind(ADMIN_USER_ID).run();
+    await expect(issueRegistrationPermit(binding, ADMIN_USER_ID)).rejects.toBeInstanceOf(RegistrationPermitError);
+    await expect(authorize(issued.permit, "credential-restarted")).rejects.toBeInstanceOf(RegistrationPermitError);
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toBeInstanceOf(RegistrationPermitError);
+    expect((await storedState()).grant).toEqual(completed);
+    expect((await storedState()).passkeys).toHaveLength(0);
+  });
+
+  it("does not reissue a permit after registration wins the race", async () => {
+    const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
+    const authorization = await authorize(issued.permit, "credential-winner");
+    await savePasskey(authorization, authorization.credentialId);
+    const completed = await storedState();
+    await expect(issueRegistrationPermit(binding, ADMIN_USER_ID)).rejects.toBeInstanceOf(RegistrationPermitError);
+    expect(await storedState()).toEqual(completed);
+  });
+
+  it("serializes reissue against completion and allows only the winning grant to register", async () => {
+    const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
+    const authorization = await authorize(issued.permit, "credential-old-race");
+    const [registration, reissue] = await Promise.allSettled([
+      savePasskey(authorization, authorization.credentialId),
+      issueRegistrationPermit(binding, ADMIN_USER_ID),
+    ]);
+    expect([registration, reissue].filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    if (reissue.status === "fulfilled") {
+      const pending = await storedState();
+      expect(pending.passkeys).toHaveLength(0);
+      expect(pending.grant?.consumed_at).toBeNull();
+      expect(pending.grant?.credential_id).toBeNull();
+      const replacement = await authorize(reissue.value.permit, "credential-new-race");
+      await savePasskey(replacement, replacement.credentialId);
+    }
+    const completed = await storedState();
+    expect(completed.passkeys).toHaveLength(1);
+    expect(completed.grant?.consumed_at).toEqual(expect.any(Number));
+    expect(completed.grant?.credential_id).toBe(completed.passkeys[0]?.credential_id);
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toBeInstanceOf(RegistrationPermitError);
+    await expect(issueRegistrationPermit(binding, ADMIN_USER_ID)).rejects.toBeInstanceOf(RegistrationPermitError);
+    expect(await storedState()).toEqual(completed);
+  });
+
   it("rejects absent authorization, another user, and a different verified credential", async () => {
     const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
     const authorization = await authorize(issued.permit, "credential-admin");
@@ -190,5 +254,66 @@ describe("initial registration persistence on local D1", () => {
 
     await binding.prepare("DROP TRIGGER reject_test_grant_consumption").run();
     expect((await savePasskey(authorization, authorization.credentialId)).credentialID).toBe(authorization.credentialId);
+  });
+
+  it("rolls back the inserted key when grant consumption silently affects zero rows", async () => {
+    const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
+    const authorization = await authorize(issued.permit, "credential-zero-update");
+    const pending = await storedState();
+    await binding.prepare(`
+      CREATE TRIGGER ignore_test_grant_consumption BEFORE UPDATE ON bootstrap_grant
+      WHEN NEW.consumed_at IS NOT NULL
+      BEGIN SELECT RAISE(IGNORE); END
+    `).run();
+
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toThrow();
+    expect(await storedState()).toEqual(pending);
+    await binding.prepare("DROP TRIGGER ignore_test_grant_consumption").run();
+    await savePasskey(authorization, authorization.credentialId);
+    expect((await storedState()).passkeys).toHaveLength(1);
+    expect((await storedState()).grant?.consumed_at).toEqual(expect.any(Number));
+  });
+
+  it("rolls back the key if the grant becomes expired before the consumption statement", async () => {
+    const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
+    const authorization = await authorize(issued.permit, "credential-expiration-boundary");
+    const pending = await storedState();
+    await binding.prepare(`
+      CREATE TRIGGER expire_test_grant AFTER INSERT ON passkey
+      BEGIN UPDATE bootstrap_grant SET expires_at = 0 WHERE user_id = NEW.user_id; END
+    `).run();
+
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toThrow();
+    expect(await storedState()).toEqual(pending);
+  });
+
+  it("does not consume the grant when passkey insertion fails", async () => {
+    const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
+    const authorization = await authorize(issued.permit, "credential-insert-failure");
+    const pending = await storedState();
+    await binding.prepare(`
+      CREATE TRIGGER reject_test_passkey BEFORE INSERT ON passkey
+      BEGIN SELECT RAISE(ABORT, 'test passkey storage failure'); END
+    `).run();
+
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toThrow();
+    expect(await storedState()).toEqual(pending);
+    await binding.prepare("DROP TRIGGER reject_test_passkey").run();
+    await savePasskey(authorization, authorization.credentialId);
+    expect((await storedState()).grant?.consumed_at).toEqual(expect.any(Number));
+  });
+
+  it("rolls back consumption if the matching key disappears inside the batch", async () => {
+    const issued = await issueRegistrationPermit(binding, ADMIN_USER_ID);
+    const authorization = await authorize(issued.permit, "credential-disappearing-key");
+    const pending = await storedState();
+    await binding.prepare(`
+      CREATE TRIGGER remove_test_saved_key AFTER UPDATE ON bootstrap_grant
+      WHEN NEW.consumed_at IS NOT NULL
+      BEGIN DELETE FROM passkey WHERE credential_id = NEW.credential_id; END
+    `).run();
+
+    await expect(savePasskey(authorization, authorization.credentialId)).rejects.toThrow();
+    expect(await storedState()).toEqual(pending);
   });
 });

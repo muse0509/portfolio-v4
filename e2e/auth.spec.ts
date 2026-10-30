@@ -74,8 +74,15 @@ test("rejects absent, expired, superseded, wrong-user, and consumed registration
     } finally { await expiredAttempt.dispose(); }
 
     const supersededPermit = await auth.issuePermit();
-    const activePermit = await auth.issuePermit();
-    expect(await registrationOptionsStatus(page, supersededPermit)).toBe(403);
+    const supersededAttempt = await beginRegistration(page, supersededPermit);
+    let activePermit: string;
+    try {
+      expect(await supersededAttempt.evaluate((value) => value.optionsStatus)).toBe(200);
+      activePermit = await auth.issuePermit();
+      expect(await finishRegistration(page, supersededAttempt, supersededPermit)).toBe(403);
+      expect(await registrationOptionsStatus(page, supersededPermit)).toBe(403);
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey").first<number>("count")).toBe(0);
+    } finally { await supersededAttempt.dispose(); }
     const registration = await registerPasskey(page, activePermit);
     expect(registration.optionsStatus).toBe(200);
     expect(registration.verificationStatus).toBe(200);
@@ -119,6 +126,93 @@ test("allows only one registration when two browser contexts verify the same per
   }
 });
 
+test("authenticates each of two passkeys belonging to the same administrator", async ({ browser, page, context, auth }) => {
+  const additionalContext = await browser.newContext();
+  const additionalPage = await additionalContext.newPage();
+  const primary = await prepareAuthBrowser(context, page);
+  const additional = await prepareAuthBrowser(additionalContext, additionalPage);
+  try {
+    const permit = await auth.issuePermit();
+    expect((await registerPasskey(page, permit)).verificationStatus).toBe(200);
+    expect(await signOut(page)).toBe(200);
+
+    // There is deliberately no production endpoint for adding another key yet.
+    // Each isolated authenticator owns one distinct resident credential.
+    await auth.seedAdditionalPasskey(additionalPage);
+    expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey WHERE user_id = ?")
+      .bind(AUTH_TEST_ADMIN_ID).first<number>("count")).toBe(2);
+    expect(await auth.db.prepare("SELECT COUNT(DISTINCT credential_id) AS count FROM passkey")
+      .first<number>("count")).toBe(2);
+
+    for (const currentPage of [page, additionalPage]) {
+      expect((await signInWithPasskey(currentPage)).verificationStatus).toBe(200);
+      expect(await sessionStatus(currentPage)).toBe(200);
+      expect(await registrationOptionsStatus(currentPage, permit)).toBe(403);
+      expect(await signOut(currentPage)).toBe(200);
+    }
+    // Both records' signature counters changed through real authentication.
+    expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey WHERE counter > 0")
+      .first<number>("count")).toBe(2);
+    expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM bootstrap_grant WHERE consumed_at IS NOT NULL")
+      .first<number>("count")).toBe(1);
+  } finally {
+    await primary.release();
+    await additional.release();
+    await additionalContext.close();
+  }
+});
+
+test("does not create another passkey when a successful registration response is retried", async ({ page, context, auth }) => {
+  const authenticator = await prepareAuthBrowser(context, page);
+  try {
+    const permit = await auth.issuePermit();
+    const attempt = await beginRegistration(page, permit);
+    try {
+      expect(await attempt.evaluate((value) => value.optionsStatus)).toBe(200);
+      expect(await finishRegistration(page, attempt, permit)).toBe(200);
+      expect(await finishRegistration(page, attempt, permit)).toBe(403);
+      expect(await registrationOptionsStatus(page, permit)).toBe(403);
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey").first<number>("count")).toBe(1);
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM bootstrap_grant WHERE consumed_at IS NOT NULL")
+        .first<number>("count")).toBe(1);
+    } finally { await attempt.dispose(); }
+  } finally { await authenticator.release(); }
+});
+
+test("keeps bootstrap registration single-use when reissue races with browser completion", async ({ page, context, auth }) => {
+  const authenticator = await prepareAuthBrowser(context, page);
+  try {
+    const permit = await auth.issuePermit();
+    const attempt = await beginRegistration(page, permit);
+    try {
+      expect(await attempt.evaluate((value) => value.optionsStatus)).toBe(200);
+      const [completion, reissue] = await Promise.allSettled([
+        finishRegistration(page, attempt, permit), auth.issuePermit(),
+      ]);
+      expect(completion.status).toBe("fulfilled");
+      if (completion.status !== "fulfilled") throw new Error("Test registration did not complete.");
+      if (completion.value === 200) {
+        expect(reissue.status).toBe("rejected");
+      } else {
+        expect(completion.value >= 400).toBe(true);
+        expect(reissue.status).toBe("fulfilled");
+        if (reissue.status !== "fulfilled") throw new Error("Test permit was not reissued.");
+        expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey").first<number>("count")).toBe(0);
+        expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM bootstrap_grant WHERE consumed_at IS NOT NULL")
+          .first<number>("count")).toBe(0);
+        expect((await registerPasskey(page, reissue.value)).verificationStatus).toBe(200);
+      }
+      expect(await finishRegistration(page, attempt, permit)).toBe(403);
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey").first<number>("count")).toBe(1);
+      expect(await auth.db.prepare(`
+        SELECT COUNT(*) AS count FROM bootstrap_grant AS grant
+        JOIN passkey ON passkey.user_id = grant.user_id AND passkey.credential_id = grant.credential_id
+        WHERE grant.consumed_at IS NOT NULL
+      `).first<number>("count")).toBe(1);
+    } finally { await attempt.dispose(); }
+  } finally { await authenticator.release(); }
+});
+
 test("rejects expired, non-administrator, and revoked sessions using real signed cookies", async ({ page, context, auth }) => {
   const { release: releaseAuthenticator } = await prepareAuthBrowser(context, page);
   try {
@@ -126,16 +220,33 @@ test("rejects expired, non-administrator, and revoked sessions using real signed
     expect(registration.verificationStatus).toBe(200);
     expect(await sessionStatus(page)).toBe(200);
 
-    await auth.db.prepare("UPDATE session SET expires_at = 0").run();
-    expect(await sessionStatus(page)).toBe(401);
+    for (const path of ["/api/admin/session", "/api/auth/get-session"]) {
+      for (const invalidation of ["expiry", "revocation"]) {
+        if (invalidation === "expiry") {
+          await auth.db.prepare("UPDATE session SET expires_at = 0").run();
+        } else {
+          await auth.db.prepare("DELETE FROM session").run();
+        }
+        const responseDetails = inspectAuthResponse(page, path);
+        const status = await page.evaluate(async (path) => (await fetch(path)).status, path);
+        expect(status).toBe(401);
+        const deletionCookies = await responseDetails;
+        expect(deletionCookies.count >= 2).toBe(true);
+        expect(deletionCookies.separate && deletionCookies.httpOnly && deletionCookies.sameSiteLax &&
+          deletionCookies.hostOnly && deletionCookies.noStore).toBe(true);
+        expect((await context.cookies()).filter((cookie) => cookie.name.endsWith("session_token")).length).toBe(0);
 
-    const login = await signInWithPasskey(page);
-    expect(login.verificationStatus).toBe(200);
-    expect(await sessionStatus(page)).toBe(200);
+        const login = await signInWithPasskey(page);
+        expect(login.verificationStatus).toBe(200);
+        expect(await sessionStatus(page)).toBe(200);
+      }
+    }
+
     await auth.db.prepare("INSERT INTO user (id, name, email, email_verified) VALUES (?, ?, ?, 1)")
       .bind("non-admin-test-user", "Non-administrator test user", "non-admin@example.invalid").run();
     await auth.db.prepare("UPDATE session SET user_id = ?").bind("non-admin-test-user").run();
     expect(await sessionStatus(page)).toBe(403);
+    expect((await context.cookies()).filter((cookie) => cookie.name.endsWith("session_token")).length).toBe(1);
 
     await auth.db.prepare("DELETE FROM session").run();
     expect(await sessionStatus(page)).toBe(401);

@@ -75,12 +75,13 @@ export function withInitialPasskeyRegistration(
         authorization.tokenHash,
       );
 
-      // Both statements run in one D1 transaction. A failed insert cannot consume
-      // the grant; another request or reissue cannot interleave between them.
+      // All statements run in one D1 transaction. The INSERT decides eligibility
+      // at persistence time; a concurrent registration or reissue cannot interleave.
       const consume = binding.prepare(`
         UPDATE bootstrap_grant
         SET consumed_at = ${DATABASE_NOW_MS}, credential_id = ?
         WHERE user_id = ? AND token_hash = ?
+          AND expires_at > ${DATABASE_NOW_MS} AND issued_at <= ${DATABASE_NOW_MS}
           AND consumed_at IS NULL AND credential_id IS NULL
           AND changes() = 1
           AND EXISTS (
@@ -95,7 +96,23 @@ export function withInitialPasskeyRegistration(
         authorization.credentialId,
       );
 
-      const results = await binding.batch([insert, consume]);
+      // A zero-row UPDATE is not a SQL failure. Abort inside the transaction if
+      // a key was inserted without its matching grant consumption; checking batch
+      // metadata after commit cannot roll it back. SQLite's json() deliberately
+      // raises on the invalid literal only in this failure branch (CASE is lazy).
+      // A rejected INSERT SELECT leaves no key and is handled by metadata below.
+      const assertConsumption = binding.prepare(`
+        SELECT CASE WHEN (changes() = 0 AND NOT EXISTS (SELECT 1 FROM passkey WHERE id = ?))
+          OR (changes() = 1 AND EXISTS (
+            SELECT 1 FROM bootstrap_grant AS grant
+            JOIN passkey ON passkey.user_id = grant.user_id
+              AND passkey.credential_id = grant.credential_id
+            WHERE passkey.id = ? AND grant.user_id = ? AND grant.token_hash = ?
+              AND grant.consumed_at IS NOT NULL AND grant.credential_id = ?
+          )) THEN 1 ELSE json('initial registration consumption failed') END AS valid
+      `).bind(id, id, authorization.userId, authorization.tokenHash, authorization.credentialId);
+
+      const results = await binding.batch([insert, consume, assertConsumption]);
       if (results[0]?.meta.changes !== 1 || results[1]?.meta.changes !== 1) {
         throw new RegistrationPermitError();
       }

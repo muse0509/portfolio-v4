@@ -28,11 +28,6 @@ export const schemaPolicy = {
       fields: {},
       indexes: [
         {
-          name: "passkey_user_id_unique",
-          fields: ["userId"],
-          unique: true,
-        },
-        {
           name: "passkey_credential_id_unique",
           fields: ["credentialID"],
           unique: true,
