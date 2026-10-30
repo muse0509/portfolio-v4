@@ -7,6 +7,8 @@ const baseURL = `http://${host}:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  // Authentication uses its own artifact-free Worker configuration.
+  testIgnore: "**/auth.spec.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,

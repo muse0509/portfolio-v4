@@ -4,9 +4,17 @@
   "main": "src/index.ts",
   // Match the newest date supported by the existing pinned workerd runtime.
   "compatibility_date": "2026-09-10",
+  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
   "send_metrics": false,
+  "vars": {
+    "AUTH_MODE": "local",
+    "AUTH_BASE_URL": "http://localhost:8788",
+    "AUTH_RP_ID": "localhost",
+    "ADMIN_USER_ID": "local-portfolio-admin"
+  },
+  "secrets": { "required": ["BETTER_AUTH_SECRET"] },
   "dev": {
     "ip": "127.0.0.1",
     "port": 8787
@@ -17,6 +25,7 @@
       "database_name": "portfolio-v4-local",
       // Local-only placeholder; no remote database has been provisioned.
       "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
       "remote": false
     }
   ],

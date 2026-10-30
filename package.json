@@ -32,14 +32,21 @@
     "typecheck:api": "pnpm --filter @portfolio-v4/api typecheck",
     "typecheck:e2e": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:api && pnpm build:api && pnpm build:worker && pnpm test:integration"
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:api && pnpm build:api && pnpm build:worker && pnpm test:integration",
+    "auth:setup:local": "pnpm --filter @portfolio-v4/api auth:setup:local",
+    "auth:issue:local": "pnpm --filter @portfolio-v4/api auth:issue:local",
+    "auth:schema:generate": "pnpm --filter @portfolio-v4/api auth:schema:generate",
+    "db:generate": "pnpm --filter @portfolio-v4/api db:generate",
+    "db:migrate:local": "pnpm --filter @portfolio-v4/api db:migrate:local",
+    "test:e2e:auth": "playwright test --config playwright.auth.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
     "@types/node": "24.13.3",
     "@types/react": "19.3.0",
     "eslint": "9.39.5",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "wrangler": "4.131.0"
   },
   "packageManager": "pnpm@11.22.0"
 }

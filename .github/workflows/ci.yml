@@ -64,3 +64,6 @@ jobs:
 
       - name: Playwright smoke test
         run: pnpm test:e2e
+
+      - name: Passkey authentication through Worker Service Binding and local D1
+        run: pnpm test:e2e:auth

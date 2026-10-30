@@ -14,13 +14,23 @@
     "cf-typegen": "wrangler types --env-interface ApiEnv cloudflare-env.d.ts",
     "typecheck": "wrangler types --env-interface ApiEnv cloudflare-env.d.ts --check && tsc --noEmit",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "auth:setup:local": "node scripts/local-auth.ts setup",
+    "auth:issue:local": "node scripts/local-auth.ts issue",
+    "auth:schema:generate": "auth generate --config ./auth.schema.config.ts --adapter drizzle --dialect sqlite --output ./src/auth/schema.ts --yes",
+    "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.12",
+    "@better-auth/passkey": "1.7.12",
+    "better-auth": "1.7.12",
     "drizzle-orm": "0.45.4",
     "hono": "4.13.14"
   },
   "devDependencies": {
+    "auth": "1.7.12",
+    "drizzle-kit": "0.31.11",
     "@types/node": "24.13.3",
     "eslint": "9.39.5",
     "typescript": "5.9.3",
