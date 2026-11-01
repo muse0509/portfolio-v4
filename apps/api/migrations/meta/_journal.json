@@ -15,6 +15,13 @@
       "when": 1793166848768,
       "tag": "0001_multiple_passkeys",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793410256131,
+      "tag": "0002_passkey_operations",
+      "breakpoints": true
     }
   ]
 }

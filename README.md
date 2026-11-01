@@ -2,7 +2,7 @@
 
 エンジニア採用に向けて、菊田佑輔の開発実績、担当範囲、設計上の判断を伝える日本語のポートフォリオ・技術ブログを目指すリポジトリです。Solana・DeFiの経験を中心に紹介します。プロフィールと実績はコードで管理し、ブログ記事は将来自作する管理画面とDBで管理します。
 
-現在は既存の **Next.js / OpenNextアプリを `apps/web` に配置したpnpm workspace** です。`apps/api` にHono / D1 / Drizzleの接続基盤と、Better Auth / Passkeyによるローカル管理者認証を実装しています。ホーム `/`、実績 `/works`、問い合わせAPI `/api/contact` は維持しています。問い合わせフォームUI、ブログ、管理画面、認証の復旧・予備キー機能は未実装です。
+現在は既存の **Next.js / OpenNextアプリを `apps/web` に配置したpnpm workspace** です。`apps/api` にHono / D1 / Drizzleの接続基盤と、Better Auth / Passkeyによるローカル管理者認証を実装しています。ホーム `/`、実績 `/works`、問い合わせAPI `/api/contact` は維持しています。管理者向けパスキー一覧・追加・削除と操作ごとの再認証APIも備えています。問い合わせフォームUI、ブログ、管理画面、全パスキー紛失時の復旧は未実装です。
 
 ## 現在の構成
 
@@ -20,7 +20,7 @@ apps/web/
   .dev.vars.example        ローカルWorker向け環境変数サンプル
 apps/api/
   src/                     Hono、Drizzle接続、管理者認証と生成スキーマ
-  migrations/              認証用の初回・複数パスキー対応マイグレーション
+  migrations/              認証・複数パスキー・管理操作の追加マイグレーション
   scripts/local-auth.ts    ローカルsecret準備と初回登録許可の発行
   tests/                   ローカルWorker・D1・認証の検証
   wrangler.jsonc           API WorkerとローカルD1の設定
@@ -60,7 +60,7 @@ pnpm dev
 
 OpenNextのビルド済みWorkerを確認する場合は、APIを起動したまま `pnpm build:worker` の後、別ターミナルで `pnpm dev:worker --port 8788` を実行し、`GET http://localhost:8788/api/health/backend` を確認します。Next.js開発サーバーとは別の実行方式です。Service BindingはAPI Worker名 `portfolio-v4-api` で解決し、通常のHTTP転送先は設定しません。
 
-D1はAPIだけにバインドし、healthでは `SELECT 1` による読み取り確認を行います。認証用に `user`、`session`、`account`、`verification`、`passkey`、`bootstrap_grant` の6テーブルがあります。ユーザーとパスキーは1対多で、credential IDは全ユーザーを通して一意です。初回マイグレーション適用済みのDBにも、`pnpm db:migrate:local` で追加の `0001_multiple_passkeys.sql` を適用してください。この移行はユーザー単位の一意インデックスだけを削除し、既存データ、主キー・外部キー、検索用インデックスを保持します。DBの削除・初期化は不要です。ローカル状態は `apps/api/.wrangler/` に保存され、Git管理対象外です。DB IDはローカル用のダミー値で、リモートDBは未作成です。APIの `workers_dev` / `preview_urls` は無効、公開ルートは未設定ですが、未デプロイのため本番の到達性は未検証です。
+D1はAPIだけにバインドし、healthでは `SELECT 1` による読み取り確認を行います。認証用に `user`、`session`、`account`、`verification`、`passkey`、`bootstrap_grant`、`passkey_operation` の7テーブルがあります。ユーザーとパスキーは1対多で、credential IDは全ユーザーを通して一意です。初回マイグレーション適用済みのDBにも、`pnpm db:migrate:local` で未適用の追加マイグレーションを適用してください。`0001_multiple_passkeys.sql` はユーザー単位の一意インデックスだけを削除し、`0002_passkey_operations.sql` は管理操作の許可テーブルを追加します。既存データ、主キー・外部キー、検索用インデックスを保持します。DBの削除・初期化は不要です。ローカル状態は `apps/api/.wrangler/` に保存され、Git管理対象外です。DB IDはローカル用のダミー値で、リモートDBは未作成です。APIの `workers_dev` / `preview_urls` は無効、公開ルートは未設定ですが、未デプロイのため本番の到達性は未検証です。
 
 ### ローカル管理者認証
 
@@ -76,11 +76,28 @@ pnpm auth:issue:local
 
 同じローカルDBへの `issue` は直列に実行してください。同時実行ではDBの再発行順序と許可ファイルの保存順序が逆転し、ファイルに無効な許可が残る可能性があります。この場合も登録は拒否されます。すべての発行処理が終了してから、改めて1回だけ再発行してください。
 
-登録許可は10分で失効し、未使用なら再発行で以前の許可が無効になります。初回パスキー1本の保存と許可の消費はD1バッチで一体化し、消費更新が0件でもキーだけが確定しないようSQL内で検査します。登録完了は `bootstrap_grant.consumed_at` / `credential_id` に保持し、将来パスキーを削除してもこの記録を消去して初回登録を再開させない設計です。保存・消費後にセッション作成やログインが失敗した場合は通常のログインを再試行します。複数の保存済みパスキーによるログインには対応しますが、初回登録経路での追加登録と消費済み許可の再発行はできません。予備キーの追加・削除APIと全紛失時の復旧は未実装です。
+登録許可は10分で失効し、未使用なら再発行で以前の許可が無効になります。初回パスキー1本の保存と許可の消費はD1バッチで一体化し、消費更新が0件でもキーだけが確定しないようSQL内で検査します。登録完了は `bootstrap_grant.consumed_at` / `credential_id` に保持し、将来パスキーを削除してもこの記録を消去して初回登録を再開させない設計です。保存・消費後にセッション作成やログインが失敗した場合は通常のログインを再試行します。複数の保存済みパスキーによるログインには対応しますが、初回登録経路での追加登録と消費済み許可の再発行はできません。予備キーの管理には以下の専用APIを使います。全紛失時の復旧は未実装です。
+
+管理APIは同一Origin・有効な管理者セッションを必要とし、Web → 固定Service Binding → API → D1を通ります。Better Auth標準の一覧・削除・名前変更経路は公開しません。一覧は `id`、`name`、`createdAt` のみを返します。
+
+| 経路 | 入力・用途 |
+| --- | --- |
+| `GET /api/admin/passkeys` | 登録済みキーの一覧 |
+| `POST /api/admin/passkeys/reauth/options` | `{operation: "add"}` または `{operation: "delete", passkeyId}`。`{operationId, options}` を返す |
+| `POST /api/admin/passkeys/reauth/verify` | `{operationId, response}`。既存キーによる新しいWebAuthn認証を検証 |
+| `POST /api/admin/passkeys/add/options` | `{operationId}`。追加キーの登録optionsを返す |
+| `POST /api/admin/passkeys/add/verify` | `{operationId, response, name?}`。追加キーの保存と許可消費 |
+| `POST /api/admin/passkeys/delete` | `{operationId, passkeyId}`。対象キーの削除と許可消費 |
+
+POSTはJSONです。追加・削除は毎回再認証が必要で、通常ログインだけでは許可されません。再認証はUV必須で、ユーザー・セッション・操作・削除対象・チャレンジをサーバー側で結び付けます。`operationId` は検索用の識別子であり、単独では操作できません。秘密の操作許可値は発行しません。再認証がセッション作成まで成功した後、D1で新セッションへ操作を移し、元セッションを失効させてから新Cookieを返します。途中失敗では許可を有効にせず、元セッションを保持します。成功応答を失った場合は通常ログインからやり直してください。
+
+許可は再認証成功から5分間、一つの操作に一回限り有効です。確定時にもセッションと再認証に使ったキーの存在を検査します。削除は対象と異なる残存キーによる再認証を必要とし、最後の1件は削除できません。削除・許可消費・現在以外の管理者セッションの失効を同じD1バッチで確定し、途中失敗や更新0件では全体をロールバックします。追加保存も許可消費と一体です。削除と通常ログインが競合した場合も、セッション保存時に検証済みキーの現存を確認します。初回登録完了記録は変更しません。
+
+期限切れの操作行は一覧取得・再認証開始のたびに最大100件を期限順に削除し、セッション削除でも関連行を削除します。これは保存済みキー数の上限ではありません。呼び出し側は `unauthorized`（401）、`forbidden`（403）、`reauthentication_required` / `permission_expired`（403）、`deletion_not_permitted`（409）、`invalid_request`（400/413/415）、`unavailable`（503）を区別できます。管理画面は未実装です。
 
 認証のローカルURLは **`http://localhost:8788`、RP IDは `localhost`** に固定しています。`pnpm dev:api` と、`pnpm dev --port 8788` またはビルド後の `pnpm dev:worker --port 8788` を別ターミナルで起動します。通常の `pnpm dev`（3000番）では上記healthの疎通を確認し、認証は8788番で検証してください。セッションはローカル検証用に8時間、更新間隔1時間、cookie cache無効で、チャレンジは固定版プラグインの既定値5分です。本番向けHTTPS / Secure Cookieの設定分岐はありますが、本番ドメインは未確定・未検証です。
 
-登録からログアウトまでのブラウザ操作は、`pnpm build:worker` の後に `pnpm test:e2e:auth` で確認します。8788番を空けて実行してください。テストは独立したローカルWorker・D1とChromiumの仮想認証器を使います。操作用ページはPlaywright内だけのfixtureで、公開画面や本番ビルドに認証検証画面・管理画面は追加していません。
+初回登録・ログイン・再認証・予備キー追加/削除・ログアウトのブラウザ操作は、`pnpm build:worker` の後に `pnpm test:e2e:auth` で確認します。8788番を空けて実行してください。テストは独立したローカルWorker・D1とChromiumの仮想認証器を使います。操作用ページはPlaywright内だけのfixtureで、公開画面や本番ビルドに認証検証画面・管理画面は追加していません。
 
 ## ルートから実行するコマンド
 
@@ -161,7 +178,7 @@ APIのみの検査は `pnpm lint:api` / `pnpm typecheck:api` を使います。A
 
 公開ページのSSRは将来実装する要件です。TanStack RouterをTanStack Startに読み替えず、実装方式は後続で検証します。pnpm・ESLint・Vitestなどの既存ツールを維持し、Turborepo・Lefthook・Oxlint・Oxfmtは今回導入しません。Bun移行や開発ツールの入れ替えは、バックエンド基盤の検証を始める前提条件ではありません。`packages/contracts` は導入時まで作成しません。
 
-作業順は **リポジトリ整理（実施済み）→ バックエンド基盤と認証の検証 → ブログAPI → フロントエンド実装** です。現在はローカルの接続・管理者認証・認証スキーマと初回マイグレーションまでを実装しています。本番設定と復旧方針は後続の検討事項です。見た目は画像生成で複数案を比較し、仕様を確定してから実装します。
+作業順は **リポジトリ整理（実施済み）→ バックエンド基盤と認証の検証 → ブログAPI → フロントエンド実装** です。現在はローカルの接続・管理者認証・再認証付きパスキー管理API・認証スキーマと追加マイグレーションまでを実装しています。本番設定と復旧方針は後続の検討事項です。見た目は画像生成で複数案を比較し、仕様を確定してから実装します。
 
 ## 文書の位置づけ
 

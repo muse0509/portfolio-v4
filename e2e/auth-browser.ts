@@ -28,6 +28,12 @@ export async function prepareAuthBrowser(context: BrowserContext, page: Page) {
     setUserVerificationResponse: async (isBadUV: boolean) => {
       await cdp.send("WebAuthn.setResponseOverrideBits", { authenticatorId, isBadUV, isBogusSignature: false });
     },
+    setInvalidSignatureResponse: async (isBogusSignature: boolean) => {
+      await cdp.send("WebAuthn.setResponseOverrideBits", { authenticatorId, isBadUV: false, isBogusSignature });
+    },
+    setPresence: async (enabled: boolean) => {
+      await cdp.send("WebAuthn.setAutomaticPresenceSimulation", { authenticatorId, enabled });
+    },
     clearCredentials: async () => {
       await cdp.send("WebAuthn.clearCredentials", { authenticatorId });
     },
@@ -132,6 +138,7 @@ export async function inspectAuthResponse(page: Page, path: string) {
   const cookies = headers.filter((header) => header.name.toLowerCase() === "set-cookie").map((header) => header.value);
   return {
     count: cookies.length,
+    expiredCount: cookies.filter((cookie) => /(?:^|;)\s*max-age=0(?:;|$)/i.test(cookie)).length,
     separate: new Set(cookies.map((cookie) => cookie.split("=", 1)[0])).size === cookies.length,
     httpOnly: cookies.every((cookie) => /(?:^|;)\s*httponly(?:;|$)/i.test(cookie)),
     sameSiteLax: cookies.every((cookie) => /(?:^|;)\s*samesite=lax(?:;|$)/i.test(cookie)),

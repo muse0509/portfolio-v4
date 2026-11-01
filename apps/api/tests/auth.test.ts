@@ -43,6 +43,72 @@ describe("authentication API boundary", () => {
     expect(await response.json()).toEqual({ error: "unauthorized" });
   });
 
+  it("requires an administrator session for every passkey-management endpoint", async () => {
+    for (const [path, method] of [
+      ["/api/admin/passkeys", "GET"],
+      ["/api/admin/passkeys/reauth/options", "POST"],
+      ["/api/admin/passkeys/reauth/verify", "POST"],
+      ["/api/admin/passkeys/add/options", "POST"],
+      ["/api/admin/passkeys/add/verify", "POST"],
+      ["/api/admin/passkeys/delete", "POST"],
+    ] as const) {
+      const response = await request(path, {
+        method,
+        headers: {
+          "Content-Type": "application/json", "X-User-Id": ADMIN_ID,
+          "X-Role": "admin", "X-Registration-Permit": "test-only-bootstrap-permit",
+        },
+        ...(method === "POST" ? { body: "{}" } : {}),
+      });
+      expect(response.status).toBe(401);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(await response.json()).toEqual({ error: "unauthorized" });
+    }
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM verification").first<number>("count")).toBe(0);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM passkey_operation").first<number>("count")).toBe(0);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM session").first<number>("count")).toBe(0);
+  });
+
+  it("enforces Origin and Fetch Metadata before management authentication", async () => {
+    for (const path of ["/api/admin/passkeys/reauth/options", "/api/admin/passkeys/add/verify", "/api/admin/passkeys/delete"]) {
+      for (const headers of [
+        { Origin: "https://untrusted.example" },
+        { Origin: "null", Referer: `${ORIGIN}/` },
+        { Origin: ORIGIN, "Sec-Fetch-Site": "cross-site" },
+        { "X-Forwarded-Host": "localhost:8788", "X-Forwarded-Proto": "http" },
+      ]) {
+        const response = await server.fetch(path, {
+          method: "POST", body: "{}", headers: { "Content-Type": "application/json", ...headers },
+        });
+        expect(response.status).toBe(403);
+        expect(response.headers.getSetCookie()).toHaveLength(0);
+        expect(response.headers.get("Cache-Control")).toBe("no-store");
+      }
+    }
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM passkey_operation").first<number>("count")).toBe(0);
+  });
+
+  it("rejects invalid management bodies, query parameters, methods, and unknown paths", async () => {
+    for (const body of ["null", "[]", "not-json", '{"context":{"operation":"delete"}}']) {
+      const response = await request("/api/admin/passkeys/reauth/options", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body,
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "invalid_request" });
+    }
+    expect((await request("/api/admin/passkeys/reauth/options", { method: "POST", body: "{}" })).status).toBe(415);
+    expect((await request("/api/admin/passkeys/add/verify", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "x".repeat(64 * 1024 + 1),
+    })).status).toBe(413);
+    expect((await request("/api/admin/passkeys?userId=another-user")).status).toBe(400);
+    expect((await request("/api/admin/passkeys", { method: "POST" })).status).toBe(405);
+    expect((await request("/api/admin/passkeys/delete", { method: "DELETE" })).status).toBe(405);
+    expect((await request("/api/admin/passkeys/reauth/options")).status).toBe(405);
+    expect((await request("/api/admin/passkeys/arbitrary", { method: "POST" })).status).toBe(404);
+    expect((await request("/api/admin/passkeys/delete/extra", { method: "POST" })).status).toBe(404);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM passkey_operation").first<number>("count")).toBe(0);
+  });
+
   it("does not expose signup, password login, account changes, or passkey management", async () => {
     for (const [path, method] of [
       ["sign-up/email", "POST"], ["sign-in/email", "POST"], ["sign-in/social", "POST"],

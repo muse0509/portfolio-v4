@@ -48,6 +48,18 @@ async function dataSnapshot() {
   })));
 }
 
+async function originalTableDefinitions() {
+  return (await binding.prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'table' AND name <> 'passkey_operation' ORDER BY name").all()).results;
+}
+
+async function applyExistingMultiplePasskeyMigration() {
+  const sql = await readFile(new URL("../migrations/0001_multiple_passkeys.sql", import.meta.url), "utf8");
+  await binding.batch([
+    ...unstable_splitSqlQuery(sql).map((statement) => binding.prepare(statement)),
+    binding.prepare("INSERT INTO d1_migrations (name) VALUES ('0001_multiple_passkeys.sql')"),
+  ]);
+}
+
 async function expectPasskeyConstraints() {
   const indexes = (await binding.prepare("PRAGMA index_list('passkey')").all<{ name: string; unique: number }>()).results;
   expect(indexes.some((index) => index.name === "passkey_user_id_unique")).toBe(false);
@@ -120,7 +132,8 @@ describe("passkey migration on disposable local D1", () => {
     await worker.applyD1Migrations("DB");
     await expectPasskeyConstraints();
     const history = await migrationHistory();
-    expect(history.map((row) => row.name)).toEqual(["0000_initial_auth.sql", "0001_multiple_passkeys.sql"]);
+    expect(history.map((row) => row.name)).toEqual(["0000_initial_auth.sql", "0001_multiple_passkeys.sql", "0002_passkey_operations.sql"]);
+    expect((await binding.prepare("SELECT * FROM passkey_operation").all()).results).toEqual([]);
     const state = await dataSnapshot();
     await worker.applyD1Migrations("DB");
     expect(await migrationHistory()).toEqual(history);
@@ -134,14 +147,13 @@ describe("passkey migration on disposable local D1", () => {
     await expect(db.insert(schema.passkey).values(passkey("blocked-key", "blocked-credential")))
       .rejects.toThrow();
     const original = await dataSnapshot();
-    const originalTables = (await binding.prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'table' ORDER BY name").all()).results;
+    const originalTables = await originalTableDefinitions();
     const worker = server.getWorker<ApiEnv>();
 
     await worker.applyD1Migrations("DB");
 
     expect(await dataSnapshot()).toEqual(original);
-    expect((await binding.prepare("SELECT name, sql FROM sqlite_schema WHERE type = 'table' ORDER BY name").all()).results)
-      .toEqual(originalTables);
+    expect(await originalTableDefinitions()).toEqual(originalTables);
     await expectPasskeyConstraints();
     await db.insert(schema.passkey).values(passkey("second-key", "second-credential"));
     await db.insert(schema.passkey).values(passkey("third-key", "third-credential"));
@@ -152,6 +164,38 @@ describe("passkey migration on disposable local D1", () => {
     await worker.applyD1Migrations("DB");
     expect(await dataSnapshot()).toEqual(upgraded);
     expect(await migrationHistory()).toEqual(history);
+  });
+
+  it("adds operation storage to the existing multiple-key schema without changing any authentication data", async () => {
+    await applyOriginalMigration();
+    await applyExistingMultiplePasskeyMigration();
+    await seedOriginalData();
+    await drizzle(binding).insert(schema.passkey).values(passkey("backup-key", "backup-credential"));
+    const original = await dataSnapshot();
+    const originalTables = await originalTableDefinitions();
+    const priorHistory = await migrationHistory();
+    const worker = server.getWorker<ApiEnv>();
+
+    await worker.applyD1Migrations("DB");
+
+    expect(await dataSnapshot()).toEqual(original);
+    expect(await originalTableDefinitions()).toEqual(originalTables);
+    expect((await binding.prepare("SELECT * FROM passkey_operation").all()).results).toEqual([]);
+    const history = await migrationHistory();
+    expect(history.slice(0, 2)).toEqual(priorHistory);
+    expect(history.map((row) => row.name)).toEqual(["0000_initial_auth.sql", "0001_multiple_passkeys.sql", "0002_passkey_operations.sql"]);
+    const foreignKeys = (await binding.prepare("PRAGMA foreign_key_list('passkey_operation')").all()).results;
+    expect(foreignKeys).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: "user", from: "user_id", to: "id", on_delete: "CASCADE" }),
+      expect.objectContaining({ table: "session", from: "session_id", to: "id", on_delete: "CASCADE" }),
+    ]));
+    expect(foreignKeys).toHaveLength(2);
+    await expectPasskeyConstraints();
+
+    await worker.applyD1Migrations("DB");
+    expect(await migrationHistory()).toEqual(history);
+    expect(await dataSnapshot()).toEqual(original);
+    expect((await binding.prepare("SELECT * FROM passkey_operation").all()).results).toEqual([]);
   });
 
   it("allows several keys per user while preserving credential uniqueness, primary keys, and foreign keys", async () => {
