@@ -8,6 +8,12 @@ const allowedRoutes = new Map<string, "GET" | "POST">([
   ["/api/auth/get-session", "GET"],
   ["/api/auth/sign-out", "POST"],
   ["/api/admin/session", "GET"],
+  ["/api/admin/passkeys", "GET"],
+  ["/api/admin/passkeys/reauth/options", "POST"],
+  ["/api/admin/passkeys/reauth/verify", "POST"],
+  ["/api/admin/passkeys/add/options", "POST"],
+  ["/api/admin/passkeys/add/verify", "POST"],
+  ["/api/admin/passkeys/delete", "POST"],
 ]);
 
 // A transport safeguard for the local authentication foundation, not an account policy.

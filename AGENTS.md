@@ -6,7 +6,7 @@ Portfolio V4 presents Yusuke Kikuta’s development work, responsibilities, and 
 
 The current implementation includes the existing Next.js App Router / OpenNext application in `apps/web`, its contact API, and a Hono API Worker in `apps/api`, managed with pnpm workspace. The API foundation connects to local D1 through Drizzle and is reached from Web through Service Binding. See [README.md](README.md) for current structure and commands. Existing `docs/` files preserve earlier decisions; detailed design, investigation, and work logs are maintained outside this repository.
 
-The future design uses TypeScript, React + TanStack Router, Hono, oRPC, Better Auth with its Passkey plugin, Cloudflare D1 (SQLite), and Drizzle ORM. The Hono/D1/Drizzle foundation, local Web/API Service Binding, and local administrator Passkey authentication with its initial migration are implemented. Blog features, oRPC, the admin UI, recovery/backup keys, and the future frontend remain unimplemented. Production authentication configuration is not yet validated. DB, private R2 storage, and Cloudflare Images Workers bindings belong to the API Worker; use Workers Static Assets for static files and Workers Logs for logs. Public-page SSR is a future requirement; do not substitute TanStack Start for TanStack Router.
+The future design uses TypeScript, React + TanStack Router, Hono, oRPC, Better Auth with its Passkey plugin, Cloudflare D1 (SQLite), and Drizzle ORM. The Hono/D1/Drizzle foundation, local Web/API Service Binding, and local administrator Passkey authentication with its initial migration are implemented. Backend passkey listing, addition, deletion, and per-operation reauthentication are implemented. Blog features, oRPC, the admin UI, recovery, and the future frontend remain unimplemented. Production authentication configuration is not yet validated. DB, private R2 storage, and Cloudflare Images Workers bindings belong to the API Worker; use Workers Static Assets for static files and Workers Logs for logs. Public-page SSR is a future requirement; do not substitute TanStack Start for TanStack Router.
 
 The 2026-10-26 decision is to continue using pnpm for package and workspace management in both the current and future architecture. The existing workspace, CI, and dependency protections are established, and this application does not require Bun-specific features. Bun migration is not a required future task; reconsider it only as an optional evaluation when a concrete need arises.
 
@@ -66,7 +66,7 @@ The root owns E2E dependencies and validation; do not silently drop `e2e` or eit
 - When branch and PR work is authorized, keep one task per branch and PR.
 - Do not modify external Cloudflare settings as part of local repository organization. Do not reset, clean, restore, check out over, or stash user changes.
 - Do not invent unspecified limits, authentication lifetimes, or backup retention periods. Record them as open decisions for the appropriate validation phase.
-- Stop after the authorized local foundation and authentication validation; do not proceed into account recovery, backup-key management, blog, or frontend implementation.
+- Stop after the authorized local foundation and authentication validation; do not proceed into account recovery, blog, or frontend implementation without a new request.
 
 ## Completion criteria
 

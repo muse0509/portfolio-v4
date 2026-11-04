@@ -1,8 +1,111 @@
 import { test, expect, AUTH_TEST_ORIGIN, AUTH_TEST_ADMIN_ID } from "./auth-fixture";
+import { createAuthentication } from "../apps/api/src/auth/auth";
 import {
   beginRegistration, finishRegistration, inspectAuthResponse, prepareAuthBrowser, registerPasskey,
   registrationOptionsStatus, sessionStatus, signInWithPasskey, signOut,
 } from "./auth-browser";
+
+const SESSION_READ_PATHS = ["/api/admin/passkeys", "/api/admin/session", "/api/auth/get-session"];
+const AGE_SESSION_SQL = `UPDATE session SET
+  expires_at = CAST(unixepoch('subsecond') * 1000 AS INTEGER) + 6 * 60 * 60 * 1000,
+  updated_at = CAST(unixepoch('subsecond') * 1000 AS INTEGER) - 2 * 60 * 60 * 1000`;
+const REVOKE_DURING_REFRESH_SQL = `CREATE TRIGGER test_revoke_during_refresh BEFORE UPDATE ON session
+  BEGIN DELETE FROM session WHERE id = OLD.id; SELECT RAISE(IGNORE); END`;
+
+for (const path of SESSION_READ_PATHS) {
+  test(`preserves unauthorized cookies when session refresh loses to revocation: ${path}`, async ({ page, context, auth }) => {
+    const authenticator = await prepareAuthBrowser(context, page);
+    try {
+      expect((await registerPasskey(page, await auth.issuePermit())).verificationStatus).toBe(200);
+      await auth.db.prepare(AGE_SESSION_SQL).run();
+      // The real adapter must read the still-valid session before it can update
+      // it. Delete it at that exact update boundary, with no timer or mocked 401.
+      await auth.db.prepare(REVOKE_DURING_REFRESH_SQL).run();
+      const wire = inspectAuthResponse(page, path);
+      const result = await page.evaluate(async (path) => {
+        const response = await fetch(path);
+        const body: unknown = await response.json();
+        return { status: response.status, generic: JSON.stringify(body) === JSON.stringify({ error: "unauthorized" }) };
+      }, path);
+      const details = await wire;
+      // Assert all observations together; failures report metadata, never cookies.
+      expect({
+        ...result, cookieCount: details.count, expiredCount: details.expiredCount,
+        allCookiesExpire: details.expiredCount === details.count,
+        separate: details.separate, noStore: details.noStore,
+        browserSessionCookies: (await context.cookies()).filter((cookie) => cookie.name.endsWith("session_token")).length,
+        databaseSessions: await auth.db.prepare("SELECT COUNT(*) AS count FROM session").first<number>("count"),
+      }).toEqual({ status: 401, generic: true, cookieCount: 3, expiredCount: 3, allCookiesExpire: true, separate: true,
+        noStore: true, browserSessionCookies: 0, databaseSessions: 0 });
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey_operation").first<number>("count")).toBe(0);
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey").first<number>("count")).toBe(1);
+    } finally { await authenticator.release(); }
+  });
+}
+
+test("pinned getSession asResponse preserves real renewal failure status and expiry headers", async ({ page, context, auth }) => {
+  const authenticator = await prepareAuthBrowser(context, page);
+  try {
+    expect((await registerPasskey(page, await auth.issuePermit())).verificationStatus).toBe(200);
+    const cookie = (await context.cookies()).filter((cookie) => cookie.name.endsWith("session_token"))
+      .map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
+    await auth.db.prepare(AGE_SESSION_SQL).run();
+    await auth.db.prepare(REVOKE_DURING_REFRESH_SQL).run();
+    const env = await auth.server.getWorker<ApiEnv>("portfolio-v4-api").getEnv();
+    const request = new Request(`${AUTH_TEST_ORIGIN}/api/auth/get-session`, { headers: { Cookie: cookie, Origin: AUTH_TEST_ORIGIN } });
+    const { auth: authentication, state } = createAuthentication(env, request);
+    const response = await authentication.api.getSession({ headers: request.headers, asResponse: true });
+    const cookies = response.headers.getSetCookie();
+    expect({ status: response.status, databaseFailed: state.databaseFailed,
+      expiredCount: cookies.filter((value) => /Max-Age=0/i.test(value)).length,
+      separate: new Set(cookies.map((value) => value.split("=", 1)[0])).size === cookies.length,
+    }).toEqual({ status: 401, databaseFailed: false, expiredCount: 3, separate: true });
+    await response.body?.cancel();
+    expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM session").first<number>("count")).toBe(0);
+  } finally { await authenticator.release(); }
+});
+
+test("session reads preserve live cookies on real D1 failures and relay normal renewal cookies", async ({ page, context, auth }) => {
+  const authenticator = await prepareAuthBrowser(context, page);
+  try {
+    expect((await registerPasskey(page, await auth.issuePermit())).verificationStatus).toBe(200);
+    const initialCookie = (await context.cookies()).find((cookie) => cookie.name.endsWith("session_token"))?.value;
+    expect(Boolean(initialCookie)).toBe(true);
+    for (const path of SESSION_READ_PATHS) {
+      await auth.db.prepare(AGE_SESSION_SQL).run();
+      const renewalWire = inspectAuthResponse(page, path);
+      const status = await page.evaluate(async (path) => (await fetch(path)).status, path);
+      const renewed = await renewalWire;
+      expect({ status, count: renewed.count, expiredCount: renewed.expiredCount,
+        attributes: renewed.httpOnly && renewed.sameSiteLax && renewed.hostOnly && renewed.separate && renewed.noStore,
+      }).toEqual({ status: 200, count: 1, expiredCount: 0, attributes: true });
+
+      for (const failure of ["read", "update"]) {
+        await auth.db.prepare(AGE_SESSION_SQL).run();
+        if (failure === "read") await auth.db.prepare("ALTER TABLE session RENAME TO session_unavailable").run();
+        else await auth.db.prepare("CREATE TRIGGER test_reject_session_update BEFORE UPDATE ON session BEGIN SELECT RAISE(ABORT, 'test-only update failure'); END").run();
+        try {
+          const wire = inspectAuthResponse(page, path);
+          const result = await page.evaluate(async (path) => {
+            const response = await fetch(path);
+            return { status: response.status,
+              generic: JSON.stringify(await response.json()) === JSON.stringify({ error: "unavailable" }) };
+          }, path);
+          const details = await wire;
+          expect({ ...result, cookieCount: details.count, expiredCount: details.expiredCount, noStore: details.noStore })
+            .toEqual({ status: 503, generic: true, cookieCount: 0, expiredCount: 0, noStore: true });
+          expect((await context.cookies()).find((cookie) => cookie.name.endsWith("session_token"))?.value === initialCookie).toBe(true);
+        } finally {
+          if (failure === "read") await auth.db.prepare("ALTER TABLE session_unavailable RENAME TO session").run();
+          else await auth.db.prepare("DROP TRIGGER test_reject_session_update").run();
+        }
+        expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM session").first<number>("count")).toBe(1);
+      }
+      expect(await page.evaluate(async (path) => (await fetch(path)).status, path)).toBe(200);
+    }
+    expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey_operation").first<number>("count")).toBe(0);
+  } finally { await authenticator.release(); }
+});
 
 test("registers a passkey, signs in, authorizes the administrator, and invalidates logout cookies", async ({ page, context, auth }) => {
   const { release: releaseAuthenticator } = await prepareAuthBrowser(context, page);
@@ -220,7 +323,7 @@ test("rejects expired, non-administrator, and revoked sessions using real signed
     expect(registration.verificationStatus).toBe(200);
     expect(await sessionStatus(page)).toBe(200);
 
-    for (const path of ["/api/admin/session", "/api/auth/get-session"]) {
+    for (const path of SESSION_READ_PATHS) {
       for (const invalidation of ["expiry", "revocation"]) {
         if (invalidation === "expiry") {
           await auth.db.prepare("UPDATE session SET expires_at = 0").run();
@@ -245,7 +348,9 @@ test("rejects expired, non-administrator, and revoked sessions using real signed
     await auth.db.prepare("INSERT INTO user (id, name, email, email_verified) VALUES (?, ?, ?, 1)")
       .bind("non-admin-test-user", "Non-administrator test user", "non-admin@example.invalid").run();
     await auth.db.prepare("UPDATE session SET user_id = ?").bind("non-admin-test-user").run();
-    expect(await sessionStatus(page)).toBe(403);
+    for (const path of SESSION_READ_PATHS) {
+      expect(await page.evaluate(async (path) => (await fetch(path)).status, path)).toBe(403);
+    }
     expect((await context.cookies()).filter((cookie) => cookie.name.endsWith("session_token")).length).toBe(1);
 
     await auth.db.prepare("DELETE FROM session").run();
@@ -332,6 +437,31 @@ test("can sign in normally if initial passkey persistence succeeds but session c
     expect((await signInWithPasskey(page)).verificationStatus).toBe(200);
     expect(await sessionStatus(page)).toBe(200);
     expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM session").first<number>("count")).toBe(1);
+  } finally { await release(); }
+});
+
+test("cannot create a login session when the verified key is deleted before session persistence", async ({ page, context, auth }) => {
+  const { release } = await prepareAuthBrowser(context, page);
+  try {
+    const permit = await auth.issuePermit();
+    expect((await registerPasskey(page, permit)).verificationStatus).toBe(200);
+    expect(await signOut(page)).toBe(200);
+    // The official verifier and application hook run before the counter update.
+    // Remove the key at that boundary to reproduce deletion winning the race.
+    await auth.db.prepare(`CREATE TRIGGER test_delete_verified_key BEFORE UPDATE OF counter ON passkey
+      BEGIN DELETE FROM passkey WHERE id = OLD.id; SELECT RAISE(IGNORE); END`).run();
+    try {
+      const login = await signInWithPasskey(page);
+      expect(login.optionsStatus).toBe(200);
+      expect(login.verificationStatus).toBe(403);
+      expect(await sessionStatus(page)).toBe(401);
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM passkey").first<number>("count")).toBe(0);
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM session").first<number>("count")).toBe(0);
+      expect((await context.cookies()).filter((cookie) => cookie.name.endsWith("session_token")).length).toBe(0);
+      expect(await auth.db.prepare("SELECT COUNT(*) AS count FROM bootstrap_grant WHERE consumed_at IS NOT NULL AND credential_id IS NOT NULL")
+        .first<number>("count")).toBe(1);
+      expect(await registrationOptionsStatus(page, permit)).toBe(403);
+    } finally { await auth.db.prepare("DROP TRIGGER test_delete_verified_key").run(); }
   } finally { await release(); }
 });
 

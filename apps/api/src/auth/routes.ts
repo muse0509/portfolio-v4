@@ -1,7 +1,10 @@
 import { createAuthentication } from "./auth.ts";
 import { authorizeRegistrationPermit, REGISTRATION_PERMIT_HEADER, RegistrationPermitError } from "./bootstrap.ts";
+import { handlePasskeyManagement, MANAGEMENT_METHODS } from "./management.ts";
+import { readSession } from "./read-session.ts";
 
 const METHODS = new Map([
+  ...MANAGEMENT_METHODS,
   ["/api/auth/passkey/generate-register-options", "GET"],
   ["/api/auth/passkey/verify-registration", "POST"],
   ["/api/auth/passkey/generate-authenticate-options", "GET"],
@@ -43,7 +46,8 @@ export async function handleAuthentication(request: Request, env: ApiEnv): Promi
   // Registration permits must never enter query strings or persisted context.
   if (url.search) return json(400, { error: "invalid_request" });
   try {
-    const { auth, config, state } = createAuthentication(env, request);
+    const authentication = createAuthentication(env, request);
+    const { auth, config, state } = authentication;
     if (!hasTrustedOrigin(request, config.baseURL)) return json(403, { error: "forbidden" });
     const headers = new Headers();
     for (const name of FORWARDED_HEADERS) {
@@ -51,6 +55,7 @@ export async function handleAuthentication(request: Request, env: ApiEnv): Promi
       if (value !== null) headers.set(name, value);
     }
     let body: string | undefined;
+    let parsedBody: Record<string, unknown> = {};
     if (request.method === "POST") {
       if (!headers.get("content-type")?.startsWith("application/json")) return json(415, { error: "invalid_request" });
       // Also enforce the size limit at the API boundary, not only at Web.
@@ -80,7 +85,9 @@ export async function handleAuthentication(request: Request, env: ApiEnv): Promi
       if (input === null || typeof input !== "object" || Array.isArray(input) || "context" in input) {
         return json(400, { error: "invalid_request" });
       }
+      parsedBody = input as Record<string, unknown>;
     }
+    if (MANAGEMENT_METHODS.has(url.pathname)) return await handlePasskeyManagement(env, request, headers, parsedBody, authentication);
     if (REGISTRATION_PATHS.has(url.pathname)) {
       await authorizeRegistrationPermit(env.DB, config.adminUserId, headers.get(REGISTRATION_PERMIT_HEADER));
       const session = await auth.api.getSession({ headers });
@@ -90,15 +97,15 @@ export async function handleAuthentication(request: Request, env: ApiEnv): Promi
       }
     }
     if (url.pathname === "/api/admin/session" || url.pathname === "/api/auth/get-session") {
-      const session = await auth.api.getSession({ headers, returnHeaders: true });
-      if (state.databaseFailed) return json(503, { error: "unavailable" });
-      if (!session.response) return appendCookies(session.headers, json(401, { error: "unauthorized" }));
-      if (session.response.session.userId !== config.adminUserId || session.response.user.id !== config.adminUserId) {
+      const session = await readSession(authentication, headers);
+      if (session.status === "unavailable") return json(503, { error: "unavailable" });
+      if (session.status === "unauthenticated") return appendCookies(session.headers, json(401, { error: "unauthorized" }));
+      if (session.session.userId !== config.adminUserId || session.user.id !== config.adminUserId) {
         return json(403, { error: "forbidden" });
       }
       return appendCookies(session.headers, json(200, url.pathname === "/api/admin/session"
         ? { status: "ok" }
-        : { user: { id: config.adminUserId }, session: { expiresAt: session.response.session.expiresAt } }));
+        : { user: { id: config.adminUserId }, session: { expiresAt: session.session.expiresAt } }));
     }
     const upstream = await auth.handler(new Request(`${config.baseURL}${url.pathname}`, {
       method: request.method, headers, ...(body === undefined ? {} : { body }),

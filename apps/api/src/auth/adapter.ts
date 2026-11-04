@@ -1,7 +1,13 @@
 import type { BetterAuthOptions, DBAdapter, DBTransactionAdapter } from "better-auth";
 import { RegistrationPermitError, type RegistrationPermit } from "./bootstrap.ts";
+import { persistAdditionalPasskey, type OperationAuthorization } from "./operations.ts";
 
 export type RegistrationAuthorization = RegistrationPermit & Readonly<{ credentialId: string }>;
+export type AdditionalRegistrationAuthorization = OperationAuthorization & Readonly<{
+  kind: "additional";
+  credentialId: string;
+  registrationChallenge: string;
+}>;
 
 type AdapterFactory = (options: BetterAuthOptions) => DBAdapter;
 type PasskeyAdapter = Pick<DBTransactionAdapter, "create" | "findOne">;
@@ -14,11 +20,11 @@ type CreateInput<T extends Record<string, unknown>> = {
 
 const DATABASE_NOW_MS = "CAST(unixepoch('subsecond') * 1000 AS INTEGER)";
 
-/** Wrap only initial passkey persistence; Better Auth still owns verification and sessions. */
+/** Every key save needs a server-created authorization from a verified ceremony. */
 export function withInitialPasskeyRegistration(
   binding: ApiEnv["DB"],
   createAdapter: AdapterFactory,
-  getAuthorization: () => RegistrationAuthorization | null,
+  getAuthorization: () => RegistrationAuthorization | AdditionalRegistrationAuthorization | null,
 ): AdapterFactory {
   function guardCreate(adapter: PasskeyAdapter): DBAdapter["create"] {
     return async function create<T extends Record<string, unknown>, R = T>(
@@ -47,6 +53,20 @@ export function withInitialPasskeyRegistration(
       }
 
       const id = input.forceAllowId && typeof data.id === "string" ? data.id : crypto.randomUUID();
+      if ("kind" in authorization && authorization.kind === "additional") {
+        await persistAdditionalPasskey(binding, authorization, {
+          id, name: typeof data.name === "string" ? data.name : null, publicKey: data.publicKey,
+          credentialId: authorization.credentialId, counter: data.counter,
+          deviceType: data.deviceType === "singleDevice" ? "singleDevice" : "multiDevice", backedUp: data.backedUp,
+          transports: typeof data.transports === "string" ? data.transports : null, createdAt: data.createdAt.getTime(),
+          aaguid: typeof data.aaguid === "string" ? data.aaguid : null,
+          registrationChallenge: authorization.registrationChallenge,
+        });
+        const saved = await adapter.findOne<R>({ model: input.model, where: [{ field: "id", value: id }], select: input.select });
+        if (!saved) throw new Error("Passkey persistence failed.");
+        return saved;
+      }
+      if (!("tokenHash" in authorization)) throw new RegistrationPermitError();
       const insert = binding.prepare(`
         INSERT INTO passkey (
           id, name, public_key, user_id, credential_id, counter,
